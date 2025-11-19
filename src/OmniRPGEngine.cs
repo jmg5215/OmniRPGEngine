@@ -1,6 +1,6 @@
 // OmniRPGEngine.cs
 // MVP core XP + Rage discipline skeleton with simple UI scaffolding.
-// NOTE: Drop into oxide/plugins as-is. Config and data files will be created on first load.
+// NOTE: Drop into oxide/plugins (or carbon/plugins) as-is. Config and data files will be created on first load.
 
 using System;
 using System.Collections.Generic;
@@ -52,10 +52,10 @@ namespace Oxide.Plugins
             public string RageCommand = "orpgrage";
             public string UiCommand = "orpgui";
 
-                        public float AnchorMinX = 0.2f;
-                        public float AnchorMinY = 0.1f;
-                        public float AnchorMaxX = 0.8f;
-                        public float AnchorMaxY = 0.9f;
+            public float AnchorMinX = 0.2f;
+            public float AnchorMinY = 0.1f;
+            public float AnchorMaxX = 0.8f;
+            public float AnchorMaxY = 0.9f;
         }
 
         private class XpSettings
@@ -201,7 +201,6 @@ namespace Oxide.Plugins
             public long Deaths;
             public double TotalPlayTimeSeconds;
             [NonSerialized] public float SessionStartTime;
-
 
             public PlayerData()
             {
@@ -489,7 +488,8 @@ namespace Oxide.Plugins
 
         #endregion
 
-        
+        #region Utility
+
         private string FormatTime(double seconds)
         {
             if (seconds <= 0) return "0m";
@@ -499,7 +499,9 @@ namespace Oxide.Plugins
             return $"{t.Minutes}m {t.Seconds}s";
         }
 
-#region Rage Discipline
+        #endregion
+
+        #region Rage Discipline
 
         private RageNodeConfig GetRageNodeConfig(string nodeId)
         {
@@ -748,12 +750,14 @@ namespace Oxide.Plugins
 
             player.ChatMessage(string.Join("\n", parts));
         }
+
         #endregion
 
         #region UI
 
-        private const string UI_MAIN = "OmniRPG.UI.Main";
+        #region UI Main Shell & Navigation
 
+        private const string UI_MAIN = "OmniRPG.UI.Main";
 
         [ConsoleCommand("omnirpg.ui")]
         private void CCmdOpenUi(ConsoleSystem.Arg arg)
@@ -949,6 +953,10 @@ namespace Oxide.Plugins
                 }
             }, parent);
         }
+
+        #endregion
+
+        #region UI Pages
 
         private void BuildProfilePage(BasePlayer player, PlayerData data, string parent, CuiElementContainer container)
         {
@@ -1226,6 +1234,8 @@ namespace Oxide.Plugins
                 }
             }, parent);
         }
+
+        #endregion
 
         #endregion
     }
