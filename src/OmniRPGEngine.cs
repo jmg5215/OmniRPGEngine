@@ -1,9 +1,10 @@
 // OmniRPGEngine.cs
-// MVP core XP + Rage discipline skeleton with simple UI scaffolding.
-// NOTE: Drop into oxide/plugins (or carbon/plugins) as-is. Config and data files will be created on first load.
+// Core XP + Rage discipline system with UI shell, leaderboard, admin config editor, and BotReSpawn profile XP UI.
+// NOTE: Drop into oxide/plugins (or carbon/plugins) as-is. Data/config files will be created on first load.
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Oxide.Core;
 using Oxide.Core.Configuration;
@@ -11,11 +12,10 @@ using Oxide.Core.Plugins;
 using Oxide.Game.Rust.Cui;
 using Rust;
 using UnityEngine;
-using System.Globalization;
 
 namespace Oxide.Plugins
 {
-    [Info("OmniRPGEngine", "GuildGPT", "0.2.7")]
+    [Info("OmniRPGEngine", "Somescrub", "0.3.1")]
     [Description("Universal RPG framework providing XP, levels and discipline-based skill trees (Rage MVP).")]
     public class OmniRPGEngine : RustPlugin
     {
@@ -25,8 +25,14 @@ namespace Oxide.Plugins
         private const string PERM_ADMIN = "omnirpgengine.admin";
 
         [PluginReference] private Plugin PermissionsManager;
-        [PluginReference] private Plugin ImageLibrary;
+        [PluginReference("ImageLibrary")] private Plugin ImageLibrary;
         [PluginReference("BotReSpawn")] private Plugin BotReSpawn; // Used to detect BotReSpawn NPCs
+
+        // Track BotReSpawn NPC userIDs so they never pollute player stats / leaderboard
+        private readonly HashSet<ulong> botReSpawnIds = new HashSet<ulong>();
+
+        // Per-player Bot XP page index for pagination
+        private readonly Dictionary<ulong, int> botXpPage = new Dictionary<ulong, int>();
 
         #endregion
 
@@ -75,6 +81,12 @@ namespace Oxide.Plugins
 
             public double LevelCurveBase = 100;    // XP for level 1→2
             public double LevelCurveGrowth = 1.25; // Each level multiplies required XP by this
+
+            // Legacy per BotReSpawn profile multipliers (for migration)
+            public Dictionary<string, double> BotReSpawnProfileMultipliers = new Dictionary<string, double>();
+
+            // New full settings (per profile)
+            public Dictionary<string, BotProfileXpSettings> BotReSpawnProfiles = new Dictionary<string, BotProfileXpSettings>();
         }
 
         private class RageSettings
@@ -149,6 +161,12 @@ namespace Oxide.Plugins
             public float RecoilReductionPerLevel = 0f;
         }
 
+        private class BotProfileXpSettings
+        {
+            public double Multiplier = 1.0;
+            public double FlatXp = 0.0;
+        }
+
         protected override void LoadDefaultConfig()
         {
             config = PluginConfig.DefaultConfig();
@@ -164,6 +182,24 @@ namespace Oxide.Plugins
                 if (config == null)
                 {
                     throw new Exception("Config file is null");
+                }
+
+                if (config.XP.BotReSpawnProfiles == null)
+                    config.XP.BotReSpawnProfiles = new Dictionary<string, BotProfileXpSettings>();
+
+                // Migration from legacy BotReSpawnProfileMultipliers if needed
+                if (config.XP.BotReSpawnProfileMultipliers != null &&
+                    config.XP.BotReSpawnProfileMultipliers.Count > 0 &&
+                    (config.XP.BotReSpawnProfiles == null || config.XP.BotReSpawnProfiles.Count == 0))
+                {
+                    foreach (var kvp in config.XP.BotReSpawnProfileMultipliers)
+                    {
+                        config.XP.BotReSpawnProfiles[kvp.Key] = new BotProfileXpSettings
+                        {
+                            Multiplier = kvp.Value,
+                            FlatXp = 0.0
+                        };
+                    }
                 }
             }
             catch
@@ -184,8 +220,6 @@ namespace Oxide.Plugins
 
         private DynamicConfigFile dataFile;
         private Dictionary<ulong, PlayerData> players = new Dictionary<ulong, PlayerData>();
-        // Track BotReSpawn NPC userIDs so they never pollute player stats / leaderboard
-        private readonly HashSet<ulong> botReSpawnIds = new HashSet<ulong>();
 
         private class PlayerData
         {
@@ -297,13 +331,19 @@ namespace Oxide.Plugins
             cmd.AddChatCommand(config.UI.UiCommand, this, CmdOpenUi);
             cmd.AddChatCommand("orpg", this, CmdOpenUi);
             cmd.AddChatCommand("orpgadmin", this, CmdAdminUi);
+
             cmd.AddConsoleCommand("omnirpg.ui", this, "CCmdOpenUi");
             cmd.AddConsoleCommand("omnirpg.rage.upgrade", this, "CCmdRageUpgrade");
 
-            // NEW admin config editor commands
+            // Admin config editor commands
             cmd.AddConsoleCommand("omnirpg.admin.adjust", this, "CCmdAdminAdjust");
             cmd.AddConsoleCommand("omnirpg.admin.toggle", this, "CCmdAdminToggle");
             cmd.AddConsoleCommand("omnirpg.admin.save", this, "CCmdAdminSave");
+
+            // Bot XP editor commands
+            cmd.AddConsoleCommand("omnirpg.botxp.mult", this, "CCmdBotXpMult");
+            cmd.AddConsoleCommand("omnirpg.botxp.flat", this, "CCmdBotXpFlat");
+            cmd.AddConsoleCommand("omnirpg.botxp.page", this, "CCmdBotXpPage");
         }
 
         private void OnServerSave()
@@ -352,42 +392,52 @@ namespace Oxide.Plugins
         private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
         {
             if (entity == null || info == null) return;
-            // If this is a BotReSpawn NPC, let BotReSpawn hooks handle it
-            if (entity is ScientistNPC) return;
+
             var killer = info.InitiatorPlayer;
             if (killer == null || !killer.IsConnected) return;
-
             if (!permission.UserHasPermission(killer.UserIDString, PERM_USE))
                 return;
 
-            double xp = 0;
+            // Identify victim types
+            var victimPlayer = entity as BasePlayer;
+            var victimNpc = entity as BaseNpc;
 
-            if (entity is BaseNpc)
-            {
-                xp = config.XP.BaseKillNpc;
-            }
-            else if (entity is BasePlayer && entity != killer && !IsBotReSpawnNpc(entity as BasePlayer))
-            {
-                xp = config.XP.BaseKillPlayer;
-            }
+            // Skip BotReSpawn NPCs entirely — they are handled by OnBotReSpawnNPCKilled
+            if (victimPlayer != null && IsBotReSpawnNpc(victimPlayer))
+                return;
 
-            if (xp <= 0) return;
-
-            // Stats tracking
             var killerData = GetOrCreatePlayerData(killer);
             if (killerData == null) return;
 
-            if (entity is BaseNpc)
+            double xp = 0;
+
+            if (victimPlayer != null)
             {
+                if (victimPlayer.IsNpc)
+                {
+                    // Vanilla NPCs implemented as NPCPlayers (e.g. scientists, tunnel dwellers, etc.)
+                    xp = config.XP.BaseKillNpc;
+                    killerData.NpcKills++;
+                }
+                else if (victimPlayer != killer)
+                {
+                    // Real player kill
+                    xp = config.XP.BaseKillPlayer;
+                    killerData.PlayerKills++;
+
+                    var victimData = GetOrCreatePlayerData(victimPlayer);
+                    if (victimData != null)
+                        victimData.Deaths++;
+                }
+            }
+            else if (victimNpc != null)
+            {
+                // Non-player NPCs (animals, etc.)
+                xp = config.XP.BaseKillNpc;
                 killerData.NpcKills++;
             }
-            else if (entity is BasePlayer && entity != killer && !IsBotReSpawnNpc(entity as BasePlayer))
-            {
-                killerData.PlayerKills++;
-                var victimPlayer = entity as BasePlayer;
-                var victimData = GetOrCreatePlayerData(victimPlayer);
-                if (victimData != null) victimData.Deaths++;
-            }
+
+            if (xp <= 0) return;
 
             AwardXp(killer, xp, "Kill");
             OnRageKillEvent(killer, entity);
@@ -435,6 +485,53 @@ namespace Oxide.Plugins
 
             if (xp > 0)
                 AwardXp(player, xp, "Plants");
+        }
+
+        #endregion
+
+        #region BotReSpawn Integration
+
+        // Called when a BotReSpawn NPC is spawned
+        private void OnBotReSpawnNPCSpawned(ScientistNPC npc, string profilename, string group)
+        {
+            if (npc == null) return;
+
+            if (!botReSpawnIds.Contains(npc.userID))
+                botReSpawnIds.Add(npc.userID);
+
+            // Ensure we have a config entry for this profile
+            EnsureBotProfileSettings(profilename);
+        }
+
+        // Called when a BotReSpawn NPC is killed
+        private void OnBotReSpawnNPCKilled(ScientistNPC npc, string profilename, string group, HitInfo info)
+        {
+            if (npc == null || info == null) return;
+
+            botReSpawnIds.Add(npc.userID);
+
+            var killer = info.InitiatorPlayer;
+            if (killer == null || !killer.IsConnected) return;
+            if (!permission.UserHasPermission(killer.UserIDString, PERM_USE)) return;
+            if (!IsHumanBasePlayer(killer)) return;
+
+            var killerData = GetOrCreatePlayerData(killer);
+            if (killerData == null) return;
+
+            killerData.NpcKills++;
+
+
+            var settings = EnsureBotProfileSettings(profilename);
+
+            // Base XP from global + profile multiplier
+            var baseXp = config.XP.BaseKillNpc * config.XP.BotReSpawnMultiplier * settings.Multiplier;
+
+            // Additive flat XP per your choice (B)
+            var xp = baseXp + settings.FlatXp;
+
+            AwardXp(killer, xp, $"BotReSpawn ({profilename})");
+            OnRageKillEvent(killer, npc);
+            SaveData();
         }
 
         #endregion
@@ -518,11 +615,9 @@ namespace Oxide.Plugins
             return $"{t.Minutes}m {t.Seconds}s";
         }
 
-        // --- Bot / Human detection helpers ---
-
+        // Basic SteamID64 sanity check – real players only
         private bool IsLikelyHumanSteamId(ulong id)
         {
-            // Basic SteamID64 sanity check
             var idStr = id.ToString();
             if (idStr.Length != 17) return false;
             if (!idStr.StartsWith("7656")) return false;
@@ -534,7 +629,6 @@ namespace Oxide.Plugins
             if (botReSpawnIds.Contains(id))
                 return true;
 
-            // Fallback to API if available
             if (BotReSpawn != null)
             {
                 try
@@ -553,7 +647,7 @@ namespace Oxide.Plugins
         {
             if (player == null) return false;
 
-            // Use the NPCPlayer overload if available
+            // Ask BotReSpawn directly if this NPC is one of its bots
             if (BotReSpawn != null && player is NPCPlayer npc)
             {
                 try
@@ -562,16 +656,17 @@ namespace Oxide.Plugins
                     if (result is bool b && b)
                         return true;
                 }
-                catch { }
+                catch
+                {
+                    // ignore errors from BotReSpawn
+                }
             }
 
-            // Fallback to ID & IsNpc flag
+            // Check our tracked BotReSpawn IDs
             if (botReSpawnIds.Contains(player.userID))
                 return true;
 
-            if (player.IsNpc)
-                return true;
-
+            // Fallback: use the ID-based API
             return IsBotReSpawnId(player.userID);
         }
 
@@ -593,44 +688,37 @@ namespace Oxide.Plugins
             return true;
         }
 
-        #endregion
-
-        #region BotReSpawn Integration
-
-        // Called when a BotReSpawn NPC is spawned
-        private void OnBotReSpawnNPCSpawned(ScientistNPC npc, string profilename, string group)
+        // Ensure a BotReSpawn profile has settings in config, return current settings
+        private BotProfileXpSettings EnsureBotProfileSettings(string profileName)
         {
-            if (npc == null) return;
+            if (string.IsNullOrEmpty(profileName))
+                profileName = "UnnamedProfile";
 
-            // Mark this ID as a BotReSpawn NPC
-            if (!botReSpawnIds.Contains(npc.userID))
-                botReSpawnIds.Add(npc.userID);
+            if (config.XP.BotReSpawnProfiles == null)
+                config.XP.BotReSpawnProfiles = new Dictionary<string, BotProfileXpSettings>();
+
+            BotProfileXpSettings settings;
+            if (!config.XP.BotReSpawnProfiles.TryGetValue(profileName, out settings))
+            {
+                settings = new BotProfileXpSettings { Multiplier = 1.0, FlatXp = 0.0 };
+                config.XP.BotReSpawnProfiles[profileName] = settings;
+                SaveConfig();
+            }
+
+            return settings;
         }
 
-        // Called when a BotReSpawn NPC is killed
-        private void OnBotReSpawnNPCKilled(ScientistNPC npc, string profilename, string group, HitInfo info)
+        private int GetBotXpPage(BasePlayer player)
         {
-            if (npc == null || info == null) return;
+            int page;
+            if (!botXpPage.TryGetValue(player.userID, out page))
+                page = 0;
+            return page;
+        }
 
-            // Make sure the ID is tracked as a bot
-            botReSpawnIds.Add(npc.userID);
-
-            var killer = info.InitiatorPlayer;
-            if (killer == null || !killer.IsConnected) return;
-            if (!permission.UserHasPermission(killer.UserIDString, PERM_USE)) return;
-
-            var killerData = GetOrCreatePlayerData(killer);
-            if (killerData == null) return;
-
-            // Count as an NPC kill, never as a "player"
-            killerData.NpcKills++;
-
-            // Use BotReSpawn-specific multiplier if you want
-            var xp = config.XP.BaseKillNpc * config.XP.BotReSpawnMultiplier;
-
-            AwardXp(killer, xp, $"BotReSpawn ({profilename})");
-            OnRageKillEvent(killer, npc);
-            SaveData();
+        private void SetBotXpPage(BasePlayer player, int page)
+        {
+            botXpPage[player.userID] = page;
         }
 
         #endregion
@@ -745,7 +833,7 @@ namespace Oxide.Plugins
 
         #endregion
 
-        #region Chat Commands
+        #region Chat + Console Commands
 
         private bool HasPerm(BasePlayer player, string perm, bool notify = true)
         {
@@ -913,7 +1001,7 @@ namespace Oxide.Plugins
             ShowMainUi(player, data, "rage");
         }
 
-        // Console: adjust numeric config values from Admin UI
+        // Admin: adjust numeric config fields from Admin UI
         [ConsoleCommand("omnirpg.admin.adjust")]
         private void CCmdAdminAdjust(ConsoleSystem.Arg arg)
         {
@@ -959,11 +1047,10 @@ namespace Oxide.Plugins
                 player.ChatMessage("<color=#ffb74d>[OmniRPG]</color> Config updated and saved.");
             }
 
-            // Refresh Admin page
             ShowMainUi(player, data, "admin");
         }
 
-        // Console: toggle boolean config values from Admin UI
+        // Admin: toggle boolean config values from Admin UI
         [ConsoleCommand("omnirpg.admin.toggle")]
         private void CCmdAdminToggle(ConsoleSystem.Arg arg)
         {
@@ -1004,7 +1091,7 @@ namespace Oxide.Plugins
             ShowMainUi(player, data, "admin");
         }
 
-        // Console: explicit Save button (if we want a big "Save" in the Admin UI)
+        // Admin: explicit Save button
         [ConsoleCommand("omnirpg.admin.save")]
         private void CCmdAdminSave(ConsoleSystem.Arg arg)
         {
@@ -1047,7 +1134,8 @@ namespace Oxide.Plugins
                     config.XP.LevelCurveBase = Math.Max(1, config.XP.LevelCurveBase + delta);
                     break;
                 case "LevelCurveGrowth":
-                    config.XP.LevelCurveGrowth = Mathf.Clamp((float)(config.XP.LevelCurveGrowth + delta), 1.01f, 5f);
+                    config.XP.LevelCurveGrowth = Mathf.Clamp(
+                        (float)(config.XP.LevelCurveGrowth + delta), 1.01f, 5f);
                     break;
                 default:
                     player.ChatMessage($"<color=#ffb74d>[OmniRPG]</color> Unknown XP field '{field}'.");
@@ -1065,13 +1153,16 @@ namespace Oxide.Plugins
                     config.Rage.CorePointsPerLevel = Math.Max(0, config.Rage.CorePointsPerLevel + delta);
                     break;
                 case "FuryDurationSeconds":
-                    config.Rage.FuryDurationSeconds = Mathf.Clamp(config.Rage.FuryDurationSeconds + (float)delta, 1f, 120f);
+                    config.Rage.FuryDurationSeconds = Mathf.Clamp(
+                        config.Rage.FuryDurationSeconds + (float)delta, 1f, 120f);
                     break;
                 case "FuryMaxBonusDamage":
-                    config.Rage.FuryMaxBonusDamage = Mathf.Clamp(config.Rage.FuryMaxBonusDamage + (float)delta, 0f, 2f);
+                    config.Rage.FuryMaxBonusDamage = Mathf.Clamp(
+                        config.Rage.FuryMaxBonusDamage + (float)delta, 0f, 2f);
                     break;
                 case "FuryOnKillGain":
-                    config.Rage.FuryOnKillGain = Mathf.Clamp(config.Rage.FuryOnKillGain + (float)delta, 0f, 1f);
+                    config.Rage.FuryOnKillGain = Mathf.Clamp(
+                        config.Rage.FuryOnKillGain + (float)delta, 0f, 1f);
                     break;
                 default:
                     player.ChatMessage($"<color=#ffb74d>[OmniRPG]</color> Unknown Rage field '{field}'.");
@@ -1079,6 +1170,105 @@ namespace Oxide.Plugins
             }
 
             return true;
+        }
+
+
+        // Adjust BotReSpawn profile multiplier
+        [ConsoleCommand("omnirpg.botxp.mult")]
+        private void CCmdBotXpMult(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null) return;
+            if (!HasPerm(player, PERM_ADMIN, false)) return;
+
+            var data = GetOrCreatePlayerData(player);
+            if (data == null) return;
+
+            var args = arg.Args;
+            if (args == null || args.Length < 2) return;
+
+            string profile = args[0];
+            string deltaStr = args[1];
+
+            double delta;
+            if (!double.TryParse(deltaStr, NumberStyles.Float, CultureInfo.InvariantCulture, out delta))
+            {
+                player.ChatMessage($"<color=#ffb74d>[OmniRPG]</color> Invalid delta '{deltaStr}'.");
+                return;
+            }
+
+            var settings = EnsureBotProfileSettings(profile);
+            settings.Multiplier = Math.Max(0, settings.Multiplier + delta);
+
+            SaveConfig();
+
+            player.ChatMessage(
+                $"<color=#ffb74d>[OmniRPG]</color> BotReSpawn profile <color=#e57373>{profile}</color> multiplier set to <color=#e57373>{settings.Multiplier:0.##}x</color>.");
+
+            ShowMainUi(player, data, "botxp");
+        }
+
+        // Adjust BotReSpawn profile flat XP
+        [ConsoleCommand("omnirpg.botxp.flat")]
+        private void CCmdBotXpFlat(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null) return;
+            if (!HasPerm(player, PERM_ADMIN, false)) return;
+
+            var data = GetOrCreatePlayerData(player);
+            if (data == null) return;
+
+            var args = arg.Args;
+            if (args == null || args.Length < 2) return;
+
+            string profile = args[0];
+            string deltaStr = args[1];
+
+            double delta;
+            if (!double.TryParse(deltaStr, NumberStyles.Float, CultureInfo.InvariantCulture, out delta))
+            {
+                player.ChatMessage($"<color=#ffb74d>[OmniRPG]</color> Invalid delta '{deltaStr}'.");
+                return;
+            }
+
+            var settings = EnsureBotProfileSettings(profile);
+            settings.FlatXp = Math.Max(0, settings.FlatXp + delta);
+
+            SaveConfig();
+
+            player.ChatMessage(
+                $"<color=#ffb74d>[OmniRPG]</color> BotReSpawn profile <color=#e57373>{profile}</color> flat XP set to <color=#e57373>{settings.FlatXp:0}</color>.");
+
+            ShowMainUi(player, data, "botxp");
+        }
+
+        // Bot XP: pagination
+        [ConsoleCommand("omnirpg.botxp.page")]
+        private void CCmdBotXpPage(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null) return;
+            if (!HasPerm(player, PERM_ADMIN, false)) return;
+
+            var data = GetOrCreatePlayerData(player);
+            if (data == null) return;
+
+            var args = arg.Args;
+            int delta = 0;
+            if (args != null && args.Length > 0)
+                int.TryParse(args[0], out delta);
+
+            var profilesDict = config.XP.BotReSpawnProfiles ?? new Dictionary<string, BotProfileXpSettings>();
+            int count = profilesDict.Count;
+            const int pageSize = 10;
+            int maxPage = count <= 0 ? 0 : (count - 1) / pageSize;
+
+            int current = GetBotXpPage(player);
+            int next = Mathf.Clamp(current + delta, 0, maxPage);
+            SetBotXpPage(player, next);
+
+            ShowMainUi(player, data, "botxp");
         }
 
         #endregion
@@ -1185,7 +1375,7 @@ namespace Oxide.Plugins
 
             AddNavButton(container, navPanel, "Profile", "profile", page == "profile", btnTop);
             btnTop -= btnHeight;
-            AddNavButton(container, navPanel, "Stats", "stats", page == "stats", btnTop);
+            AddNavButton(container, navPanel, "Rage", "rage", page == "rage", btnTop);
             btnTop -= btnHeight;
             AddNavButton(container, navPanel, "Leaderboard", "leaderboard", page == "leaderboard", btnTop);
             btnTop -= btnHeight;
@@ -1229,7 +1419,13 @@ namespace Oxide.Plugins
                 case "leaderboard":
                     BuildLeaderboardPage(player, data, contentPanel, container);
                     break;
-                case "stats":
+                case "rage":
+                    BuildRagePage(player, data, contentPanel, container);
+                    break;
+                case "botxp":
+                    BuildBotXpPage(player, data, contentPanel, container);
+                    break;
+                case "stats": // legacy / placeholder
                     BuildStatsPage(player, data, contentPanel, container);
                     break;
                 case "settings":
@@ -1490,13 +1686,555 @@ namespace Oxide.Plugins
             }, parent);
         }
 
+        // Rage tree UI page
+        private void BuildRagePage(BasePlayer player, PlayerData data, string parent, CuiElementContainer container)
+        {
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text = "Rage Tree",
+                    FontSize = 18,
+                    Align = TextAnchor.MiddleLeft,
+                    Color = "1 0.9 0.6 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.03 0.86",
+                    AnchorMax = "0.6 0.97"
+                }
+            }, parent);
+
+            // Top summary panel
+            container.Add(new CuiPanel
+            {
+                Image =
+                {
+                    Color = "0.08 0.08 0.08 0.9"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.03 0.72",
+                    AnchorMax = "0.97 0.84"
+                }
+            }, parent, parent + ".RageSummary");
+
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text =
+                        $"Unspent Rage points: {data.Rage.UnspentPoints}\n" +
+                        $"Fury: {data.Rage.FuryAmount * 100f:0}% (decays over time)\n" +
+                        $"Core points (per level): {config.Rage.CorePointsPerLevel:0}",
+                    FontSize = 13,
+                    Align = TextAnchor.MiddleLeft,
+                    Color = "1 1 1 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.03 0.1",
+                    AnchorMax = "0.97 0.9"
+                }
+            }, parent + ".RageSummary");
+
+            // Node rows
+            var nodeOrder = new[] { "core", "rifle", "shotgun", "pistol" };
+            float startY = 0.68f;
+            float rowHeight = 0.14f;
+
+            foreach (var nodeId in nodeOrder)
+            {
+                RageNodeConfig cfg;
+                if (!config.Rage.Nodes.TryGetValue(nodeId, out cfg))
+                    continue;
+
+                int lvl = GetRageNodeLevel(data, nodeId);
+
+                float yMax = startY;
+                float yMin = yMax - rowHeight;
+                startY -= rowHeight;
+
+                var rowName = parent + $".RageRow.{nodeId}";
+
+                container.Add(new CuiPanel
+                {
+                    Image =
+                    {
+                        Color = "0.07 0.07 0.07 0.9"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = $"0.03 {yMin}",
+                        AnchorMax = $"0.97 {yMax}"
+                    }
+                }, parent, rowName);
+
+                // Node name + level
+                container.Add(new CuiLabel
+                {
+                    Text =
+                    {
+                        Text = $"{cfg.DisplayName}  ({lvl}/{cfg.MaxLevel})",
+                        FontSize = 15,
+                        Align = TextAnchor.UpperLeft,
+                        Color = "1 0.9 0.6 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.03 0.45",
+                        AnchorMax = "0.5 0.95"
+                    }
+                }, rowName);
+
+                // Description summary
+                var descLines = new List<string>();
+                if (cfg.DamageBonusPerLevel != 0)
+                    descLines.Add($"+{cfg.DamageBonusPerLevel * 100f:0.#}% damage per level");
+                if (cfg.CritChancePerLevel != 0)
+                    descLines.Add($"+{cfg.CritChancePerLevel * 100f:0.#}% crit chance per level");
+                if (cfg.CritDamagePerLevel != 0)
+                    descLines.Add($"+{cfg.CritDamagePerLevel * 100f:0.#}% crit damage per level");
+                if (cfg.BleedChancePerLevel != 0)
+                    descLines.Add($"+{cfg.BleedChancePerLevel * 100f:0.#}% bleed chance per level");
+                if (cfg.MoveSpeedPerLevel != 0)
+                    descLines.Add($"+{cfg.MoveSpeedPerLevel * 100f:0.#}% move speed per level");
+                if (cfg.RecoilReductionPerLevel != 0)
+                    descLines.Add($"-{cfg.RecoilReductionPerLevel * 100f:0.#}% recoil per level");
+
+                if (descLines.Count == 0)
+                    descLines.Add("Passive bonuses");
+
+                container.Add(new CuiLabel
+                {
+                    Text =
+                    {
+                        Text = string.Join("\n", descLines),
+                        FontSize = 12,
+                        Align = TextAnchor.UpperLeft,
+                        Color = "0.9 0.9 0.9 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.03 0.05",
+                        AnchorMax = "0.7 0.6"
+                    }
+                }, rowName);
+
+                // Upgrade button
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.3 0.5 0.3 0.95",
+                        Command = $"omnirpg.rage.upgrade {nodeId}"
+                    },
+                    Text =
+                    {
+                        Text = "Upgrade +1",
+                        FontSize = 13,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.75 0.2",
+                        AnchorMax = "0.95 0.8"
+                    }
+                }, rowName);
+            }
+        }
+
+// Bot XP page (per-profile multiplier + flat XP)
+        private void BuildBotXpPage(BasePlayer player, PlayerData data, string parent, CuiElementContainer container)
+        {
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text = "BotReSpawn Profile XP",
+                    FontSize = 18,
+                    Align = TextAnchor.MiddleLeft,
+                    Color = "1 0.9 0.6 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.03 0.86",
+                    AnchorMax = "0.7 0.97"
+                }
+            }, parent);
+
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text = "Adjust per-profile XP using Multiplier and Flat XP. Profiles are discovered dynamically as BotReSpawn NPCs spawn or die.",
+                    FontSize = 12,
+                    Align = TextAnchor.MiddleLeft,
+                    Color = "0.9 0.9 0.9 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.03 0.78",
+                    AnchorMax = "0.97 0.85"
+                }
+            }, parent);
+
+            var dict = config.XP.BotReSpawnProfiles ?? new Dictionary<string, BotProfileXpSettings>();
+            if (dict.Count == 0)
+            {
+                container.Add(new CuiLabel
+                {
+                    Text =
+                    {
+                        Text = "No BotReSpawn profiles detected yet.\nOnce BotReSpawn NPCs have spawned or died, profiles will appear here.",
+                        FontSize = 14,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.2 0.4",
+                        AnchorMax = "0.8 0.6"
+                    }
+                }, parent);
+                return;
+            }
+
+            var profiles = dict.Keys.OrderBy(k => k).ToList();
+            const int pageSize = 10;
+            int pageIndex = GetBotXpPage(player);
+            int maxPage = (profiles.Count - 1) / pageSize;
+            if (pageIndex < 0) pageIndex = 0;
+            if (pageIndex > maxPage) pageIndex = maxPage;
+            SetBotXpPage(player, pageIndex);
+
+            float listTop = 0.74f;
+            float rowHeight = 0.07f;
+
+            int startIndex = pageIndex * pageSize;
+            int endIndex = Math.Min(startIndex + pageSize, profiles.Count);
+
+            for (int i = startIndex; i < endIndex; i++)
+            {
+                string profile = profiles[i];
+                var settings = dict[profile];
+                double mult = settings.Multiplier;
+                double flat = settings.FlatXp;
+
+                float yMax = listTop - (i - startIndex) * rowHeight;
+                float yMin = yMax - rowHeight + 0.005f;
+
+                var rowName = parent + ".BotXpRow." + profile;
+
+                container.Add(new CuiPanel
+                {
+                    Image =
+                    {
+                        Color = "0.07 0.07 0.07 0.9"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = $"0.03 {yMin}",
+                        AnchorMax = $"0.97 {yMax}"
+                    }
+                }, parent, rowName);
+
+                // Profile name
+                container.Add(new CuiLabel
+                {
+                    Text =
+                    {
+                        Text = profile,
+                        FontSize = 13,
+                        Align = TextAnchor.MiddleLeft,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.03 0.5",
+                        AnchorMax = "0.35 0.95"
+                    }
+                }, rowName);
+
+                // Flat XP label
+                container.Add(new CuiLabel
+                {
+                    Text =
+                    {
+                        Text = $"Flat XP: {flat:0}",
+                        FontSize = 12,
+                        Align = TextAnchor.MiddleLeft,
+                        Color = "0.9 0.9 0.9 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.03 0.05",
+                        AnchorMax = "0.35 0.45"
+                    }
+                }, rowName);
+
+                // Multiplier label
+                container.Add(new CuiLabel
+                {
+                    Text =
+                    {
+                        Text = $"Mult: {mult:0.##}x",
+                        FontSize = 12,
+                        Align = TextAnchor.MiddleLeft,
+                        Color = "0.9 0.9 0.9 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.36 0.5",
+                        AnchorMax = "0.60 0.95"
+                    }
+                }, rowName);
+
+                // Button steps
+                double flatSmall = 10;
+                double flatBig = 50;
+                double multSmall = 0.1;
+                double multBig = 0.5;
+
+                // Flat XP buttons
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.4 0.2 0.2 0.95",
+                        Command = $"omnirpg.botxp.flat {profile} {(-flatBig).ToString(CultureInfo.InvariantCulture)}"
+                    },
+                    Text =
+                    {
+                        Text = $"-{flatBig}",
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.36 0.05",
+                        AnchorMax = "0.44 0.45"
+                    }
+                }, rowName);
+
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.35 0.25 0.25 0.95",
+                        Command = $"omnirpg.botxp.flat {profile} {(-flatSmall).ToString(CultureInfo.InvariantCulture)}"
+                    },
+                    Text =
+                    {
+                        Text = $"-{flatSmall}",
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.45 0.05",
+                        AnchorMax = "0.53 0.45"
+                    }
+                }, rowName);
+
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.25 0.35 0.25 0.95",
+                        Command = $"omnirpg.botxp.flat {profile} {flatSmall.ToString(CultureInfo.InvariantCulture)}"
+                    },
+                    Text =
+                    {
+                        Text = $"+{flatSmall}",
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.54 0.05",
+                        AnchorMax = "0.62 0.45"
+                    }
+                }, rowName);
+
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.25 0.4 0.25 0.95",
+                        Command = $"omnirpg.botxp.flat {profile} {flatBig.ToString(CultureInfo.InvariantCulture)}"
+                    },
+                    Text =
+                    {
+                        Text = $"+{flatBig}",
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.63 0.05",
+                        AnchorMax = "0.71 0.45"
+                    }
+                }, rowName);
+
+                // Multiplier buttons
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.4 0.2 0.2 0.95",
+                        Command = $"omnirpg.botxp.mult {profile} {(-multBig).ToString(CultureInfo.InvariantCulture)}"
+                    },
+                    Text =
+                    {
+                        Text = $"-{multBig}",
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.72 0.50",
+                        AnchorMax = "0.80 0.95"
+                    }
+                }, rowName);
+
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.35 0.25 0.25 0.95",
+                        Command = $"omnirpg.botxp.mult {profile} {(-multSmall).ToString(CultureInfo.InvariantCulture)}"
+                    },
+                    Text =
+                    {
+                        Text = $"-{multSmall}",
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.81 0.50",
+                        AnchorMax = "0.89 0.95"
+                    }
+                }, rowName);
+
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.25 0.35 0.25 0.95",
+                        Command = $"omnirpg.botxp.mult {profile} {multSmall.ToString(CultureInfo.InvariantCulture)}"
+                    },
+                    Text =
+                    {
+                        Text = $"+{multSmall}",
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.72 0.05",
+                        AnchorMax = "0.80 0.45"
+                    }
+                }, rowName);
+
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.25 0.4 0.25 0.95",
+                        Command = $"omnirpg.botxp.mult {profile} {multBig.ToString(CultureInfo.InvariantCulture)}"
+                    },
+                    Text =
+                    {
+                        Text = $"+{multBig}",
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.81 0.05",
+                        AnchorMax = "0.89 0.45"
+                    }
+                }, rowName);
+            }
+
+            // Pagination controls
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text = $"Page {pageIndex + 1}/{maxPage + 1}",
+                    FontSize = 12,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = "1 1 1 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.40 0.05",
+                    AnchorMax = "0.60 0.12"
+                }
+            }, parent);
+
+            container.Add(new CuiButton
+            {
+                Button =
+                {
+                    Color = "0.3 0.3 0.3 0.95",
+                    Command = "omnirpg.botxp.page -1"
+                },
+                Text =
+                {
+                    Text = "Prev",
+                    FontSize = 12,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = "1 1 1 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.30 0.04",
+                    AnchorMax = "0.38 0.13"
+                }
+            }, parent);
+
+            container.Add(new CuiButton
+            {
+                Button =
+                {
+                    Color = "0.3 0.3 0.3 0.95",
+                    Command = "omnirpg.botxp.page 1"
+                },
+                Text =
+                {
+                    Text = "Next",
+                    FontSize = 12,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = "1 1 1 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.62 0.04",
+                    AnchorMax = "0.70 0.13"
+                }
+            }, parent);
+        }
+
         private void BuildStatsPage(BasePlayer player, PlayerData data, string parent, CuiElementContainer container)
         {
             container.Add(new CuiLabel
             {
                 Text =
                 {
-                    Text = "Stats / Skill Tree (coming soon)",
+                    Text = "Stats / Skill Tree (placeholder)",
                     FontSize = 16,
                     Align = TextAnchor.MiddleCenter,
                     Color = "1 0.9 0.6 1"
@@ -1931,7 +2669,29 @@ namespace Oxide.Plugins
             AddRageRow("Fury Max Damage Bonus", "FuryMaxBonusDamage", config.Rage.FuryMaxBonusDamage, 0.05, 0.2);
             AddRageRow("Fury Gain per Kill", "FuryOnKillGain", config.Rage.FuryOnKillGain, 0.01, 0.05);
 
-            // Bottom Save button (explicit)
+            // Button to open BotReSpawn XP settings page
+            container.Add(new CuiButton
+            {
+                Button =
+                {
+                    Color = "0.3 0.4 0.6 0.95",
+                    Command = "omnirpg.ui botxp"
+                },
+                Text =
+                {
+                    Text = "BotReSpawn XP Settings",
+                    FontSize = 13,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = "1 1 1 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.62 0.03",
+                    AnchorMax = "0.95 0.11"
+                }
+            }, parent);
+
+            // Bottom Save button
             container.Add(new CuiButton
             {
                 Button =
