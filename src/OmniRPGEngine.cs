@@ -11,10 +11,11 @@ using Oxide.Core.Plugins;
 using Oxide.Game.Rust.Cui;
 using Rust;
 using UnityEngine;
+using System.Globalization;
 
 namespace Oxide.Plugins
 {
-    [Info("OmniRPGEngine", "GuildGPT", "0.2.6")]
+    [Info("OmniRPGEngine", "GuildGPT", "0.2.7")]
     [Description("Universal RPG framework providing XP, levels and discipline-based skill trees (Rage MVP).")]
     public class OmniRPGEngine : RustPlugin
     {
@@ -25,6 +26,7 @@ namespace Oxide.Plugins
 
         [PluginReference] private Plugin PermissionsManager;
         [PluginReference] private Plugin ImageLibrary;
+        [PluginReference("BotReSpawn")] private Plugin BotReSpawn; // Used to detect BotReSpawn NPCs
 
         #endregion
 
@@ -71,7 +73,7 @@ namespace Oxide.Plugins
             public double NpcSpawnMultiplier = 1.0;
             public double ZombieHordeMultiplier = 1.0;
 
-            public double LevelCurveBase = 100;   // XP for level 1→2
+            public double LevelCurveBase = 100;    // XP for level 1→2
             public double LevelCurveGrowth = 1.25; // Each level multiplies required XP by this
         }
 
@@ -182,6 +184,8 @@ namespace Oxide.Plugins
 
         private DynamicConfigFile dataFile;
         private Dictionary<ulong, PlayerData> players = new Dictionary<ulong, PlayerData>();
+        // Track BotReSpawn NPC userIDs so they never pollute player stats / leaderboard
+        private readonly HashSet<ulong> botReSpawnIds = new HashSet<ulong>();
 
         private class PlayerData
         {
@@ -257,7 +261,9 @@ namespace Oxide.Plugins
 
         private PlayerData GetOrCreatePlayerData(BasePlayer player)
         {
-            if (player == null) return null;
+            if (!IsHumanBasePlayer(player))
+                return null;
+
             var id = player.userID;
             PlayerData data;
             if (!players.TryGetValue(id, out data))
@@ -292,6 +298,12 @@ namespace Oxide.Plugins
             cmd.AddChatCommand("orpg", this, CmdOpenUi);
             cmd.AddChatCommand("orpgadmin", this, CmdAdminUi);
             cmd.AddConsoleCommand("omnirpg.ui", this, "CCmdOpenUi");
+            cmd.AddConsoleCommand("omnirpg.rage.upgrade", this, "CCmdRageUpgrade");
+
+            // NEW admin config editor commands
+            cmd.AddConsoleCommand("omnirpg.admin.adjust", this, "CCmdAdminAdjust");
+            cmd.AddConsoleCommand("omnirpg.admin.toggle", this, "CCmdAdminToggle");
+            cmd.AddConsoleCommand("omnirpg.admin.save", this, "CCmdAdminSave");
         }
 
         private void OnServerSave()
@@ -340,6 +352,8 @@ namespace Oxide.Plugins
         private void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
         {
             if (entity == null || info == null) return;
+            // If this is a BotReSpawn NPC, let BotReSpawn hooks handle it
+            if (entity is ScientistNPC) return;
             var killer = info.InitiatorPlayer;
             if (killer == null || !killer.IsConnected) return;
 
@@ -352,7 +366,7 @@ namespace Oxide.Plugins
             {
                 xp = config.XP.BaseKillNpc;
             }
-            else if (entity is BasePlayer && entity != killer)
+            else if (entity is BasePlayer && entity != killer && !IsBotReSpawnNpc(entity as BasePlayer))
             {
                 xp = config.XP.BaseKillPlayer;
             }
@@ -361,13 +375,15 @@ namespace Oxide.Plugins
 
             // Stats tracking
             var killerData = GetOrCreatePlayerData(killer);
+            if (killerData == null) return;
+
             if (entity is BaseNpc)
             {
-                if (killerData != null) killerData.NpcKills++;
+                killerData.NpcKills++;
             }
-            else if (entity is BasePlayer && entity != killer)
+            else if (entity is BasePlayer && entity != killer && !IsBotReSpawnNpc(entity as BasePlayer))
             {
-                if (killerData != null) killerData.PlayerKills++;
+                killerData.PlayerKills++;
                 var victimPlayer = entity as BasePlayer;
                 var victimData = GetOrCreatePlayerData(victimPlayer);
                 if (victimData != null) victimData.Deaths++;
@@ -383,6 +399,7 @@ namespace Oxide.Plugins
             var player = entity as BasePlayer;
             if (player == null) return;
             if (!permission.UserHasPermission(player.UserIDString, PERM_USE)) return;
+            if (!IsHumanBasePlayer(player)) return;
 
             double xp = 0;
 
@@ -403,6 +420,7 @@ namespace Oxide.Plugins
         {
             if (player == null) return;
             if (!permission.UserHasPermission(player.UserIDString, PERM_USE)) return;
+            if (!IsHumanBasePlayer(player)) return;
 
             var def = item.info;
             if (def == null) return;
@@ -457,6 +475,7 @@ namespace Oxide.Plugins
         private void AwardXp(BasePlayer player, double amount, string reason)
         {
             if (player == null || amount <= 0) return;
+            if (!IsHumanBasePlayer(player)) return;
 
             var data = GetOrCreatePlayerData(player);
             if (data == null) return;
@@ -497,6 +516,121 @@ namespace Oxide.Plugins
             if (t.TotalHours >= 1)
                 return $"{(int)t.TotalHours}h {t.Minutes}m";
             return $"{t.Minutes}m {t.Seconds}s";
+        }
+
+        // --- Bot / Human detection helpers ---
+
+        private bool IsLikelyHumanSteamId(ulong id)
+        {
+            // Basic SteamID64 sanity check
+            var idStr = id.ToString();
+            if (idStr.Length != 17) return false;
+            if (!idStr.StartsWith("7656")) return false;
+            return true;
+        }
+
+        private bool IsBotReSpawnId(ulong id)
+        {
+            if (botReSpawnIds.Contains(id))
+                return true;
+
+            // Fallback to API if available
+            if (BotReSpawn != null)
+            {
+                try
+                {
+                    var result = BotReSpawn.Call("IsBotReSpawn", id);
+                    if (result is bool b && b)
+                        return true;
+                }
+                catch { }
+            }
+
+            return false;
+        }
+
+        private bool IsBotReSpawnNpc(BasePlayer player)
+        {
+            if (player == null) return false;
+
+            // Use the NPCPlayer overload if available
+            if (BotReSpawn != null && player is NPCPlayer npc)
+            {
+                try
+                {
+                    var result = BotReSpawn.Call("IsBotReSpawn", npc);
+                    if (result is bool b && b)
+                        return true;
+                }
+                catch { }
+            }
+
+            // Fallback to ID & IsNpc flag
+            if (botReSpawnIds.Contains(player.userID))
+                return true;
+
+            if (player.IsNpc)
+                return true;
+
+            return IsBotReSpawnId(player.userID);
+        }
+
+        private bool IsHumanBasePlayer(BasePlayer player)
+        {
+            if (player == null) return false;
+            if (player.IsNpc) return false;
+            if (IsBotReSpawnNpc(player)) return false;
+
+            return IsLikelyHumanSteamId(player.userID);
+        }
+
+        private bool IsHumanPlayerData(PlayerData data)
+        {
+            if (data == null) return false;
+            if (!IsLikelyHumanSteamId(data.UserId)) return false;
+            if (IsBotReSpawnId(data.UserId)) return false;
+
+            return true;
+        }
+
+        #endregion
+
+        #region BotReSpawn Integration
+
+        // Called when a BotReSpawn NPC is spawned
+        private void OnBotReSpawnNPCSpawned(ScientistNPC npc, string profilename, string group)
+        {
+            if (npc == null) return;
+
+            // Mark this ID as a BotReSpawn NPC
+            if (!botReSpawnIds.Contains(npc.userID))
+                botReSpawnIds.Add(npc.userID);
+        }
+
+        // Called when a BotReSpawn NPC is killed
+        private void OnBotReSpawnNPCKilled(ScientistNPC npc, string profilename, string group, HitInfo info)
+        {
+            if (npc == null || info == null) return;
+
+            // Make sure the ID is tracked as a bot
+            botReSpawnIds.Add(npc.userID);
+
+            var killer = info.InitiatorPlayer;
+            if (killer == null || !killer.IsConnected) return;
+            if (!permission.UserHasPermission(killer.UserIDString, PERM_USE)) return;
+
+            var killerData = GetOrCreatePlayerData(killer);
+            if (killerData == null) return;
+
+            // Count as an NPC kill, never as a "player"
+            killerData.NpcKills++;
+
+            // Use BotReSpawn-specific multiplier if you want
+            var xp = config.XP.BaseKillNpc * config.XP.BotReSpawnMultiplier;
+
+            AwardXp(killer, xp, $"BotReSpawn ({profilename})");
+            OnRageKillEvent(killer, npc);
+            SaveData();
         }
 
         #endregion
@@ -578,6 +712,7 @@ namespace Oxide.Plugins
         private void OnRageKillEvent(BasePlayer killer, BaseCombatEntity victim)
         {
             if (!config.Rage.Enabled) return;
+            if (!IsHumanBasePlayer(killer)) return;
 
             var data = GetOrCreatePlayerData(killer);
             if (data == null) return;
@@ -596,6 +731,7 @@ namespace Oxide.Plugins
             var attacker = info.InitiatorPlayer;
             if (attacker == null) return;
             if (!permission.UserHasPermission(attacker.UserIDString, PERM_USE)) return;
+            if (!IsHumanBasePlayer(attacker)) return;
 
             var data = GetOrCreatePlayerData(attacker);
             if (data == null) return;
@@ -642,7 +778,10 @@ namespace Oxide.Plugins
                 $"Total XP <color=#b3e5fc>{data.TotalXp:0}</color>\n" +
                 $"Discipline Points: <color=#f48fb1>{data.UnspentDisciplinePoints}</color>  " +
                 $"Rage Points: <color=#e57373>{data.Rage.UnspentPoints}</color>  " +
-                $"Fury: <color=#e57373>{data.Rage.FuryAmount * 100f:0}%</color>");
+                $"Fury: <color=#e57373>{data.Rage.FuryAmount * 100f:0}%</color>\n" +
+                $"Player Kills: <color=#ffcc80>{data.PlayerKills}</color> | " +
+                $"NPC Kills: <color=#ffcc80>{data.NpcKills}</color> | " +
+                $"Deaths: <color=#ffcc80>{data.Deaths}</color>");
         }
 
         private void CmdRage(BasePlayer player, string command, string[] args)
@@ -749,6 +888,197 @@ namespace Oxide.Plugins
             }
 
             player.ChatMessage(string.Join("\n", parts));
+        }
+
+        // Console command used by Rage UI "Upgrade" buttons
+        [ConsoleCommand("omnirpg.rage.upgrade")]
+        private void CCmdRageUpgrade(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null) return;
+            if (!HasPerm(player, PERM_USE, false)) return;
+
+            var data = GetOrCreatePlayerData(player);
+            if (data == null) return;
+
+            var args = arg.Args;
+            if (args == null || args.Length == 0) return;
+
+            var nodeId = args[0].ToLower();
+
+            // Spend 1 point per click from UI
+            AllocateRagePoints(player, data, nodeId, 1);
+
+            // Refresh Rage UI page
+            ShowMainUi(player, data, "rage");
+        }
+
+        // Console: adjust numeric config values from Admin UI
+        [ConsoleCommand("omnirpg.admin.adjust")]
+        private void CCmdAdminAdjust(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null) return;
+            if (!HasPerm(player, PERM_ADMIN, false)) return;
+
+            var data = GetOrCreatePlayerData(player);
+            if (data == null) return;
+
+            var args = arg.Args;
+            if (args == null || args.Length < 3) return;
+
+            string category = args[0].ToLower();   // "xp" or "rage"
+            string field = args[1];                // e.g. "BaseKillNpc"
+            string deltaStr = args[2];
+
+            double delta;
+            if (!double.TryParse(deltaStr, NumberStyles.Float, CultureInfo.InvariantCulture, out delta))
+            {
+                player.ChatMessage($"<color=#ffb74d>[OmniRPG]</color> Invalid delta '{deltaStr}'.");
+                return;
+            }
+
+            bool changed = false;
+
+            switch (category)
+            {
+                case "xp":
+                    changed = AdjustXpField(player, field, delta);
+                    break;
+                case "rage":
+                    changed = AdjustRageField(player, field, delta);
+                    break;
+                default:
+                    player.ChatMessage($"<color=#ffb74d>[OmniRPG]</color> Unknown category '{category}'.");
+                    return;
+            }
+
+            if (changed)
+            {
+                SaveConfig();
+                player.ChatMessage("<color=#ffb74d>[OmniRPG]</color> Config updated and saved.");
+            }
+
+            // Refresh Admin page
+            ShowMainUi(player, data, "admin");
+        }
+
+        // Console: toggle boolean config values from Admin UI
+        [ConsoleCommand("omnirpg.admin.toggle")]
+        private void CCmdAdminToggle(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null) return;
+            if (!HasPerm(player, PERM_ADMIN, false)) return;
+
+            var data = GetOrCreatePlayerData(player);
+            if (data == null) return;
+
+            var args = arg.Args;
+            if (args == null || args.Length < 2) return;
+
+            string category = args[0].ToLower();   // "rage"
+            string field = args[1];
+
+            bool changed = false;
+
+            switch (category)
+            {
+                case "rage":
+                    if (field.Equals("Enabled", StringComparison.OrdinalIgnoreCase))
+                    {
+                        config.Rage.Enabled = !config.Rage.Enabled;
+                        player.ChatMessage(
+                            $"<color=#ffb74d>[OmniRPG]</color> Rage Enabled: <color=#e57373>{config.Rage.Enabled}</color>");
+                        changed = true;
+                    }
+                    break;
+            }
+
+            if (changed)
+            {
+                SaveConfig();
+                player.ChatMessage("<color=#ffb74d>[OmniRPG]</color> Config updated and saved.");
+            }
+
+            ShowMainUi(player, data, "admin");
+        }
+
+        // Console: explicit Save button (if we want a big "Save" in the Admin UI)
+        [ConsoleCommand("omnirpg.admin.save")]
+        private void CCmdAdminSave(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null) return;
+            if (!HasPerm(player, PERM_ADMIN, false)) return;
+
+            var data = GetOrCreatePlayerData(player);
+            if (data == null) return;
+
+            SaveConfig();
+            player.ChatMessage("<color=#ffb74d>[OmniRPG]</color> Config saved to disk.");
+
+            ShowMainUi(player, data, "admin");
+        }
+
+        private bool AdjustXpField(BasePlayer player, string field, double delta)
+        {
+            switch (field)
+            {
+                case "BaseKillNpc":
+                    config.XP.BaseKillNpc = Math.Max(0, config.XP.BaseKillNpc + delta);
+                    break;
+                case "BaseKillPlayer":
+                    config.XP.BaseKillPlayer = Math.Max(0, config.XP.BaseKillPlayer + delta);
+                    break;
+                case "BaseGatherOre":
+                    config.XP.BaseGatherOre = Math.Max(0, config.XP.BaseGatherOre + delta);
+                    break;
+                case "BaseGatherWood":
+                    config.XP.BaseGatherWood = Math.Max(0, config.XP.BaseGatherWood + delta);
+                    break;
+                case "BaseGatherPlants":
+                    config.XP.BaseGatherPlants = Math.Max(0, config.XP.BaseGatherPlants + delta);
+                    break;
+                case "BotReSpawnMultiplier":
+                    config.XP.BotReSpawnMultiplier = Math.Max(0, config.XP.BotReSpawnMultiplier + delta);
+                    break;
+                case "LevelCurveBase":
+                    config.XP.LevelCurveBase = Math.Max(1, config.XP.LevelCurveBase + delta);
+                    break;
+                case "LevelCurveGrowth":
+                    config.XP.LevelCurveGrowth = Mathf.Clamp((float)(config.XP.LevelCurveGrowth + delta), 1.01f, 5f);
+                    break;
+                default:
+                    player.ChatMessage($"<color=#ffb74d>[OmniRPG]</color> Unknown XP field '{field}'.");
+                    return false;
+            }
+
+            return true;
+        }
+
+        private bool AdjustRageField(BasePlayer player, string field, double delta)
+        {
+            switch (field)
+            {
+                case "CorePointsPerLevel":
+                    config.Rage.CorePointsPerLevel = Math.Max(0, config.Rage.CorePointsPerLevel + delta);
+                    break;
+                case "FuryDurationSeconds":
+                    config.Rage.FuryDurationSeconds = Mathf.Clamp(config.Rage.FuryDurationSeconds + (float)delta, 1f, 120f);
+                    break;
+                case "FuryMaxBonusDamage":
+                    config.Rage.FuryMaxBonusDamage = Mathf.Clamp(config.Rage.FuryMaxBonusDamage + (float)delta, 0f, 2f);
+                    break;
+                case "FuryOnKillGain":
+                    config.Rage.FuryOnKillGain = Mathf.Clamp(config.Rage.FuryOnKillGain + (float)delta, 0f, 1f);
+                    break;
+                default:
+                    player.ChatMessage($"<color=#ffb74d>[OmniRPG]</color> Unknown Rage field '{field}'.");
+                    return false;
+            }
+
+            return true;
         }
 
         #endregion
@@ -1112,6 +1442,7 @@ namespace Oxide.Plugins
             AddLeaderboardLabel(container, parent, "Playtime", 0.88f, 0.98f, headerYMin, headerYMax, true);
 
             var top = players.Values
+                .Where(p => IsHumanPlayerData(p))
                 .OrderByDescending(p => p.TotalXp)
                 .ThenByDescending(p => p.Level)
                 .ThenBy(p => p.LastKnownName)
@@ -1199,19 +1530,426 @@ namespace Oxide.Plugins
 
         private void BuildAdminPage(BasePlayer player, PlayerData data, string parent, CuiElementContainer container)
         {
+            // Header
             container.Add(new CuiLabel
             {
                 Text =
                 {
-                    Text = "Admin Settings / Config Editor (coming soon)",
-                    FontSize = 16,
-                    Align = TextAnchor.MiddleCenter,
+                    Text = "Admin Config Editor",
+                    FontSize = 18,
+                    Align = TextAnchor.MiddleLeft,
                     Color = "1 0.9 0.6 1"
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.2 0.45",
-                    AnchorMax = "0.8 0.55"
+                    AnchorMin = "0.03 0.86",
+                    AnchorMax = "0.6 0.97"
+                }
+            }, parent);
+
+            // XP Settings panel (left)
+            var xpPanel = container.Add(new CuiPanel
+            {
+                Image =
+                {
+                    Color = "0.08 0.08 0.08 0.9"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.03 0.15",
+                    AnchorMax = "0.48 0.84"
+                }
+            }, parent, parent + ".AdminXP");
+
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text = "XP Settings",
+                    FontSize = 15,
+                    Align = TextAnchor.MiddleLeft,
+                    Color = "1 0.9 0.6 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.03 0.88",
+                    AnchorMax = "0.6 0.98"
+                }
+            }, xpPanel);
+
+            float rowTop = 0.82f;
+            float rowHeight = 0.10f;
+
+            void AddXpRow(string label, string field, double value, double stepSmall, double stepBig)
+            {
+                float yMax = rowTop;
+                float yMin = yMax - rowHeight;
+                rowTop -= rowHeight;
+
+                var rowName = xpPanel + ".Row." + field;
+
+                container.Add(new CuiPanel
+                {
+                    Image =
+                    {
+                        Color = "0.06 0.06 0.06 0.9"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = $"0.03 {yMin}",
+                        AnchorMax = $"0.97 {yMax}"
+                    }
+                }, xpPanel, rowName);
+
+                container.Add(new CuiLabel
+                {
+                    Text =
+                    {
+                        Text = $"{label}: {value:0.###}",
+                        FontSize = 12,
+                        Align = TextAnchor.MiddleLeft,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.03 0.1",
+                        AnchorMax = "0.7 0.9"
+                    }
+                }, rowName);
+
+                // -big
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.4 0.2 0.2 0.95",
+                        Command = $"omnirpg.admin.adjust xp {field} {(-stepBig).ToString(CultureInfo.InvariantCulture)}"
+                    },
+                    Text =
+                    {
+                        Text = $"-{stepBig}",
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.72 0.15",
+                        AnchorMax = "0.80 0.85"
+                    }
+                }, rowName);
+
+                // -small
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.35 0.25 0.25 0.95",
+                        Command = $"omnirpg.admin.adjust xp {field} {(-stepSmall).ToString(CultureInfo.InvariantCulture)}"
+                    },
+                    Text =
+                    {
+                        Text = $"-{stepSmall}",
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.81 0.15",
+                        AnchorMax = "0.87 0.85"
+                    }
+                }, rowName);
+
+                // +small
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.25 0.35 0.25 0.95",
+                        Command = $"omnirpg.admin.adjust xp {field} {stepSmall.ToString(CultureInfo.InvariantCulture)}"
+                    },
+                    Text =
+                    {
+                        Text = $"+{stepSmall}",
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.88 0.15",
+                        AnchorMax = "0.94 0.85"
+                    }
+                }, rowName);
+
+                // +big
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.25 0.4 0.25 0.95",
+                        Command = $"omnirpg.admin.adjust xp {field} {stepBig.ToString(CultureInfo.InvariantCulture)}"
+                    },
+                    Text =
+                    {
+                        Text = $"+{stepBig}",
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.95 0.15",
+                        AnchorMax = "1.01 0.85"
+                    }
+                }, rowName);
+            }
+
+            AddXpRow("NPC Kill XP", "BaseKillNpc", config.XP.BaseKillNpc, 5, 25);
+            AddXpRow("Player Kill XP", "BaseKillPlayer", config.XP.BaseKillPlayer, 10, 50);
+            AddXpRow("Gather Ore XP/Unit", "BaseGatherOre", config.XP.BaseGatherOre, 0.5, 2);
+            AddXpRow("Gather Wood XP/Unit", "BaseGatherWood", config.XP.BaseGatherWood, 0.5, 2);
+            AddXpRow("Gather Plants XP/Unit", "BaseGatherPlants", config.XP.BaseGatherPlants, 0.5, 2);
+            AddXpRow("BotReSpawn XP Mult", "BotReSpawnMultiplier", config.XP.BotReSpawnMultiplier, 0.1, 0.5);
+            AddXpRow("LevelCurve Base", "LevelCurveBase", config.XP.LevelCurveBase, 10, 50);
+            AddXpRow("LevelCurve Growth", "LevelCurveGrowth", config.XP.LevelCurveGrowth, 0.05, 0.2);
+
+            // Rage Settings panel (right)
+            var ragePanel = container.Add(new CuiPanel
+            {
+                Image =
+                {
+                    Color = "0.08 0.08 0.08 0.9"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.52 0.15",
+                    AnchorMax = "0.97 0.84"
+                }
+            }, parent, parent + ".AdminRage");
+
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text = "Rage Settings",
+                    FontSize = 15,
+                    Align = TextAnchor.MiddleLeft,
+                    Color = "1 0.9 0.6 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.03 0.88",
+                    AnchorMax = "0.6 0.98"
+                }
+            }, ragePanel);
+
+            // Enabled toggle row
+            var rowEnabled = ragePanel + ".Row.Enabled";
+
+            container.Add(new CuiPanel
+            {
+                Image =
+                {
+                    Color = "0.06 0.06 0.06 0.9"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.03 0.72",
+                    AnchorMax = "0.97 0.82"
+                }
+            }, ragePanel, rowEnabled);
+
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text = $"Rage Enabled: {config.Rage.Enabled}",
+                    FontSize = 12,
+                    Align = TextAnchor.MiddleLeft,
+                    Color = "1 1 1 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.03 0.1",
+                    AnchorMax = "0.7 0.9"
+                }
+            }, rowEnabled);
+
+            container.Add(new CuiButton
+            {
+                Button =
+                {
+                    Color = "0.3 0.3 0.5 0.95",
+                    Command = "omnirpg.admin.toggle rage Enabled"
+                },
+                Text =
+                {
+                    Text = "Toggle",
+                    FontSize = 12,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = "1 1 1 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.75 0.15",
+                    AnchorMax = "0.95 0.85"
+                }
+            }, rowEnabled);
+
+            float rageRowTop = 0.66f;
+
+            void AddRageRow(string label, string field, double value, double stepSmall, double stepBig)
+            {
+                float yMax = rageRowTop;
+                float yMin = yMax - rowHeight;
+                rageRowTop -= rowHeight;
+
+                var rowName = ragePanel + ".Row." + field;
+
+                container.Add(new CuiPanel
+                {
+                    Image =
+                    {
+                        Color = "0.06 0.06 0.06 0.9"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = $"0.03 {yMin}",
+                        AnchorMax = $"0.97 {yMax}"
+                    }
+                }, ragePanel, rowName);
+
+                container.Add(new CuiLabel
+                {
+                    Text =
+                    {
+                        Text = $"{label}: {value:0.###}",
+                        FontSize = 12,
+                        Align = TextAnchor.MiddleLeft,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.03 0.1",
+                        AnchorMax = "0.7 0.9"
+                    }
+                }, rowName);
+
+                // -big
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.4 0.2 0.2 0.95",
+                        Command = $"omnirpg.admin.adjust rage {field} {(-stepBig).ToString(CultureInfo.InvariantCulture)}"
+                    },
+                    Text =
+                    {
+                        Text = $"-{stepBig}",
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.72 0.15",
+                        AnchorMax = "0.80 0.85"
+                    }
+                }, rowName);
+
+                // -small
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.35 0.25 0.25 0.95",
+                        Command = $"omnirpg.admin.adjust rage {field} {(-stepSmall).ToString(CultureInfo.InvariantCulture)}"
+                    },
+                    Text =
+                    {
+                        Text = $"-{stepSmall}",
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.81 0.15",
+                        AnchorMax = "0.87 0.85"
+                    }
+                }, rowName);
+
+                // +small
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.25 0.35 0.25 0.95",
+                        Command = $"omnirpg.admin.adjust rage {field} {stepSmall.ToString(CultureInfo.InvariantCulture)}"
+                    },
+                    Text =
+                    {
+                        Text = $"+{stepSmall}",
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.88 0.15",
+                        AnchorMax = "0.94 0.85"
+                    }
+                }, rowName);
+
+                // +big
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.25 0.4 0.25 0.95",
+                        Command = $"omnirpg.admin.adjust rage {field} {stepBig.ToString(CultureInfo.InvariantCulture)}"
+                    },
+                    Text =
+                    {
+                        Text = $"+{stepBig}",
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.95 0.15",
+                        AnchorMax = "1.01 0.85"
+                    }
+                }, rowName);
+            }
+
+            AddRageRow("Core Points per Level", "CorePointsPerLevel", config.Rage.CorePointsPerLevel, 0.1, 1);
+            AddRageRow("Fury Duration (sec)", "FuryDurationSeconds", config.Rage.FuryDurationSeconds, 1, 5);
+            AddRageRow("Fury Max Damage Bonus", "FuryMaxBonusDamage", config.Rage.FuryMaxBonusDamage, 0.05, 0.2);
+            AddRageRow("Fury Gain per Kill", "FuryOnKillGain", config.Rage.FuryOnKillGain, 0.01, 0.05);
+
+            // Bottom Save button (explicit)
+            container.Add(new CuiButton
+            {
+                Button =
+                {
+                    Color = "0.3 0.5 0.3 0.95",
+                    Command = "omnirpg.admin.save"
+                },
+                Text =
+                {
+                    Text = "Save Config",
+                    FontSize = 14,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = "1 1 1 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.40 0.03",
+                    AnchorMax = "0.60 0.11"
                 }
             }, parent);
         }
