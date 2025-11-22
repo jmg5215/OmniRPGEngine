@@ -1475,7 +1475,8 @@ namespace Oxide.Plugins
 
             AddNavButton(container, navPanel, "Profile", "profile", page == "profile", btnTop);
             btnTop -= btnHeight;
-            AddNavButton(container, navPanel, "Rage", "rage", page == "rage", btnTop);
+            AddNavButton(container, navPanel, "Disciplines", "disciplines",
+                page == "disciplines" || page == "rage", btnTop);
             btnTop -= btnHeight;
             AddNavButton(container, navPanel, "Leaderboard", "leaderboard", page == "leaderboard", btnTop);
             btnTop -= btnHeight;
@@ -1516,27 +1517,38 @@ namespace Oxide.Plugins
                 case "profile":
                     BuildProfilePage(player, data, contentPanel, container);
                     break;
-                case "leaderboard":
-                    BuildLeaderboardPage(player, data, contentPanel, container);
+
+                case "disciplines":
+                    BuildDisciplinesPage(player, data, contentPanel, container);
                     break;
+
                 case "rage":
                     BuildRagePage(player, data, contentPanel, container);
                     break;
+
+                case "leaderboard":
+                    BuildLeaderboardPage(player, data, contentPanel, container);
+                    break;
+
                 case "botxp":
                     BuildBotXpPage(player, data, contentPanel, container);
                     break;
+
                 case "stats": // legacy / placeholder
                     BuildStatsPage(player, data, contentPanel, container);
                     break;
+
                 case "settings":
                     BuildSettingsPage(player, data, contentPanel, container);
                     break;
+
                 case "admin":
                     if (permission.UserHasPermission(player.UserIDString, PERM_ADMIN))
                         BuildAdminPage(player, data, contentPanel, container);
                     else
                         BuildAccessDeniedPage(player, contentPanel, container);
                     break;
+
                 case "save":
                     if (permission.UserHasPermission(player.UserIDString, PERM_ADMIN))
                     {
@@ -1545,6 +1557,7 @@ namespace Oxide.Plugins
                     }
                     BuildProfilePage(player, data, contentPanel, container);
                     break;
+
                 default:
                     BuildProfilePage(player, data, contentPanel, container);
                     break;
@@ -1602,11 +1615,264 @@ namespace Oxide.Plugins
                     AnchorMax = $"0.95 {top}"
                 }
             }, parent);
+
+            // Back to Disciplines hub
+            container.Add(new CuiButton
+            {
+                Button =
+                {
+                    Color = "0.2 0.2 0.2 0.95",
+                    Command = "omnirpg.ui disciplines"
+                },
+                Text =
+                {
+                    Text = "Back to Disciplines",
+                    FontSize = 12,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = "1 1 1 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.70 0.86",
+                    AnchorMax = "0.97 0.94"
+                }
+            }, parent);
         }
 
         #endregion
 
         #region UI Pages
+
+        private void BuildDisciplinesPage(BasePlayer player, PlayerData data, string parent, CuiElementContainer container)
+        {
+            // Header
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text = "Disciplines",
+                    FontSize = 18,
+                    Align = TextAnchor.MiddleLeft,
+                    Color = "1 0.9 0.6 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.03 0.86",
+                    AnchorMax = "0.6 0.97"
+                }
+            }, parent);
+
+            // Small blurb under the header
+            var introPanel = parent + ".DiscIntro";
+            container.Add(new CuiPanel
+            {
+                Image = { Color = "0.08 0.08 0.08 0.9" },
+                RectTransform =
+                {
+                    AnchorMin = "0.03 0.78",
+                    AnchorMax = "0.97 0.86"
+                }
+            }, parent, introPanel);
+
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text = "Choose a discipline to view and upgrade its skill tree. Rage is currently available; others are coming soon.",
+                    FontSize = 12,
+                    Align = TextAnchor.MiddleLeft,
+                    Color = "1 1 1 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.03 0.1",
+                    AnchorMax = "0.97 0.9"
+                }
+            }, introPanel);
+
+            // Main diamond area
+            var gridParent = parent + ".DiscGrid";
+            container.Add(new CuiPanel
+            {
+                Image = { Color = "0.05 0.05 0.05 0.9" },
+                RectTransform =
+                {
+                    AnchorMin = "0.03 0.10",
+                    AnchorMax = "0.97 0.78"
+                }
+            }, parent, gridParent);
+
+            // Diamond-ish layout (normalized anchors within gridParent)
+            // We only wire Rage; others are placeholders for now.
+
+            // Top – Fortitude
+            AddDisciplineCard(container, gridParent,
+                "Fortitude",
+                "Defensive resilience tree (coming soon).",
+                null,
+                "0.40 0.65", "0.60 0.90",
+                enabled: false);
+
+            // Middle left – Precision
+            AddDisciplineCard(container, gridParent,
+                "Precision",
+                "Crit / accuracy tree (coming soon).",
+                null,
+                "0.15 0.45", "0.35 0.80",
+                enabled: false);
+
+            // Center – Rage (current tree)
+            AddDisciplineCard(container, gridParent,
+                "Rage",
+                "High-risk, high-reward weapon specialization.",
+                "rage",
+                "0.375 0.40", "0.625 0.75",
+                enabled: true);
+
+            // Middle right – Survival
+            AddDisciplineCard(container, gridParent,
+                "Survival",
+                "Metabolism and sustain (coming soon).",
+                null,
+                "0.65 0.45", "0.85 0.80",
+                enabled: false);
+
+            // Bottom – Tactics
+            AddDisciplineCard(container, gridParent,
+                "Tactics",
+                "Utility / mobility tree (coming soon).",
+                null,
+                "0.40 0.15", "0.60 0.40",
+                enabled: false);
+
+            // Extra slot – Mystic (or future discipline)
+            AddDisciplineCard(container, gridParent,
+                "Mystic",
+                "Experimental effects (coming soon).",
+                null,
+                "0.15 0.15", "0.35 0.40",
+                enabled: false);
+        }
+
+        private void AddDisciplineCard(
+            CuiElementContainer container,
+            string parent,
+            string title,
+            string subtitle,
+            string pageKey,
+            string anchorMin,
+            string anchorMax,
+            bool enabled)
+        {
+            var panelName = parent + ".Disc." + title.Replace(" ", "");
+
+            string panelColor = enabled ? "0.13 0.13 0.13 0.95" : "0.07 0.07 0.07 0.9";
+            string borderColor = enabled ? "1 0.7 0.3 0.9" : "0.4 0.4 0.4 0.8";
+
+            // Background panel (acts as the “card” / image area)
+            container.Add(new CuiPanel
+            {
+                Image = { Color = panelColor },
+                RectTransform =
+                {
+                    AnchorMin = anchorMin,
+                    AnchorMax = anchorMax
+                },
+                CursorEnabled = enabled
+            }, parent, panelName);
+
+            // Subtle border effect
+            container.Add(new CuiPanel
+            {
+                Image = { Color = borderColor },
+                RectTransform =
+                {
+                    AnchorMin = "0.03 0.03",
+                    AnchorMax = "0.97 0.06"
+                }
+            }, panelName);
+
+            // Title
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text = title,
+                    FontSize = 14,
+                    Align = TextAnchor.UpperCenter,
+                    Color = "1 0.9 0.6 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.05 0.60",
+                    AnchorMax = "0.95 0.95"
+                }
+            }, panelName);
+
+            // Subtitle
+            if (!string.IsNullOrEmpty(subtitle))
+            {
+                container.Add(new CuiLabel
+                {
+                    Text =
+                    {
+                        Text = subtitle,
+                        FontSize = 11,
+                        Align = TextAnchor.UpperCenter,
+                        Color = "0.9 0.9 0.9 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.06 0.15",
+                        AnchorMax = "0.94 0.60"
+                    }
+                }, panelName);
+            }
+
+            // Clickable overlay (if enabled)
+            if (enabled && !string.IsNullOrEmpty(pageKey))
+            {
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0 0 0 0",
+                        Command = $"omnirpg.ui {pageKey}"
+                    },
+                    Text =
+                    {
+                        Text = "",
+                        FontSize = 12,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "0 0 0 0"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0 0",
+                        AnchorMax = "1 1"
+                    }
+                }, panelName);
+            }
+            else
+            {
+                // “Locked / Coming Soon” tag for non-enabled cards
+                container.Add(new CuiLabel
+                {
+                    Text =
+                    {
+                        Text = "COMING SOON",
+                        FontSize = 11,
+                        Align = TextAnchor.LowerCenter,
+                        Color = "0.9 0.7 0.3 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.1 0.02",
+                        AnchorMax = "0.9 0.20"
+                    }
+                }, panelName);
+            }
+        }
 
         private void BuildProfilePage(BasePlayer player, PlayerData data, string parent, CuiElementContainer container)
         {
@@ -1882,6 +2148,26 @@ namespace Oxide.Plugins
                     AnchorMax = "0.70 0.78"
                 }
             }, parent, treePanel);
+
+            // Tier selector strip (visual only for now)
+            var tierStrip = treePanel + ".TierStrip";
+            container.Add(new CuiPanel
+            {
+                Image =
+                {
+                    Color = "0.08 0.08 0.08 0.9"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.03 0.82",
+                    AnchorMax = "0.97 0.96"
+                }
+            }, treePanel, tierStrip);
+
+            // Simple three-tier layout: Tier 1 enabled, others locked for now
+            AddTierTab(container, tierStrip, "Tier 1", "rage", 0.03f, 0.31f, true);
+            AddTierTab(container, tierStrip, "Tier 2", null,  0.35f, 0.63f, false);
+            AddTierTab(container, tierStrip, "Tier 3", null,  0.67f, 0.95f, false);
 
             // Right: context + total buff summary
             var rightPanel = parent + ".RageRight";
@@ -2327,6 +2613,42 @@ namespace Oxide.Plugins
                     AnchorMax = "0.72 0.28"
                 }
             }, nodePanel);
+        }
+
+        private void AddTierTab(
+            CuiElementContainer container,
+            string parent,
+            string label,
+            string pageKey,
+            float xMin,
+            float xMax,
+            bool enabled)
+        {
+            string color = enabled ? "0.25 0.4 0.25 0.95" : "0.15 0.15 0.15 0.95";
+            string textColor = enabled ? "1 1 1 1" : "0.7 0.7 0.7 1";
+
+            container.Add(new CuiButton
+            {
+                Button =
+                {
+                    Color = color,
+                    Command = enabled && !string.IsNullOrEmpty(pageKey)
+                        ? $"omnirpg.ui {pageKey}"
+                        : ""
+                },
+                Text =
+                {
+                    Text = enabled ? label : label + " (Locked)",
+                    FontSize = 12,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = textColor
+                },
+                RectTransform =
+                {
+                    AnchorMin = $"{xMin} 0.10",
+                    AnchorMax = $"{xMax} 0.90"
+                }
+            }, parent);
         }
 
 // Bot XP page (per-profile multiplier + flat XP)
