@@ -347,6 +347,7 @@ namespace Oxide.Plugins
             cmd.AddConsoleCommand("omnirpg.ui", this, "CCmdOpenUi");
             cmd.AddConsoleCommand("omnirpg.rage.upgrade", this, "CCmdRageUpgrade");
             cmd.AddConsoleCommand("omnirpg.rage.inspect", this, "CCmdRageInspect");
+            cmd.AddConsoleCommand("omnirpg.rage.respec", this, "CCmdRageRespec");
 
             // Admin config editor commands
             cmd.AddConsoleCommand("omnirpg.admin.adjust", this, "CCmdAdminAdjust");
@@ -976,13 +977,7 @@ namespace Oxide.Plugins
             {
                 if (!HasPerm(player, PERM_ADMIN)) return;
 
-                int spent = data.Rage.NodeLevels.Values.Sum();
-                data.Rage.NodeLevels.Clear();
-                data.Rage.UnspentPoints += spent;
-
-                player.ChatMessage(
-                    $"<color=#ffb74d>[OmniRPG]</color> Rage tree reset. Refunded <color=#e57373>{spent}</color> points.");
-                SaveData();
+                ResetRageTree(player, data);
             }
             else
             {
@@ -1038,6 +1033,24 @@ namespace Oxide.Plugins
                 $"<color=#ffb74d>[OmniRPG]</color> Allocated <color=#e57373>{spend}</color> point(s) to " +
                 $"<color=#e57373>{cfg.DisplayName}</color>. New level: <color=#e57373>{newLevel}/{cfg.MaxLevel}</color>. " +
                 $"Remaining Rage points: <color=#e57373>{data.Rage.UnspentPoints}</color>");
+
+            SaveData();
+        }
+
+        private void ResetRageTree(BasePlayer player, PlayerData data)
+        {
+            int spent = data.Rage.NodeLevels.Values.Sum();
+            data.Rage.NodeLevels.Clear();
+            data.Rage.UnspentPoints += spent;
+
+            // Reset Rage tier progression and UI helpers
+            data.Rage.MaxUnlockedTier = 1;
+            data.Rage.LastUpgradedNodeId = null;
+            data.Rage.LastUpgradeFlashTime = 0;
+            data.Rage.SelectedNodeId = null;
+
+            player.ChatMessage(
+                $"<color=#ffb74d>[OmniRPG]</color> Rage tree reset. Refunded <color=#e57373>{spent}</color> points.");
 
             SaveData();
         }
@@ -1126,63 +1139,46 @@ namespace Oxide.Plugins
             if (data == null) return;
 
             var args = arg.Args;
-            if (args == null || args.Length == 0) return;
+            if (args == null || args.Length < 2) return;
 
             var nodeId = args[0].ToLower();
-            int delta = 0;
-            if (args.Length > 1)
-                int.TryParse(args[1], out delta);
+            int delta;
+            if (!int.TryParse(args[1], out delta) || delta == 0)
+                return;
 
-            if (delta > 0)
+            if (delta < 0)
             {
-                AllocateRagePoints(player, data, nodeId, delta);
-            }
-            else if (delta < 0)
-            {
-                DeallocateRagePoints(player, data, nodeId, -delta);
+                // No per-node refunds; use full respec instead
+                player.ChatMessage(
+                    "<color=#ffb74d>[OmniRPG]</color> You cannot reduce individual Rage nodes. " +
+                    "Use <color=#e57373>/orpg rage respec</color> to fully reset the tree.");
+                return;
             }
 
-            ShowRageUpgradeFlash(player);
+            // Only positive adjustments are allowed
+            AllocateRagePoints(player, data, nodeId, delta);
+
+            // Refresh Rage UI page
             ShowMainUi(player, data, "rage");
         }
 
-        private void DeallocateRagePoints(BasePlayer player, PlayerData data, string nodeId, int points)
+        [ConsoleCommand("omnirpg.rage.respec")]
+        private void CCmdRageRespec(ConsoleSystem.Arg arg)
         {
-            if (points <= 0) return;
+            var player = arg.Player();
+            if (player == null) return;
+            if (!HasPerm(player, PERM_ADMIN)) return;
 
-            RageNodeConfig cfg;
-            if (!config.Rage.Nodes.TryGetValue(nodeId, out cfg))
-            {
-                player.ChatMessage($"<color=#ffb74d>[OmniRPG]</color> Unknown Rage node '{nodeId}'.");
-                return;
-            }
+            var data = GetOrCreatePlayerData(player);
+            if (data == null) return;
 
-            int current = GetRageNodeLevel(data, nodeId);
-            if (current <= 0)
-            {
-                player.ChatMessage($"<color=#ffb74d>[OmniRPG]</color> Node <color=#e57373>{cfg.DisplayName}</color> has no points to remove.");
-                return;
-            }
+            ResetRageTree(player, data);
 
-            int remove = Math.Min(points, current);
-            int newLevel = current - remove;
-
-            if (newLevel <= 0)
-                data.Rage.NodeLevels.Remove(nodeId);
-            else
-                data.Rage.NodeLevels[nodeId] = newLevel;
-
-            data.Rage.UnspentPoints += remove;
-
-            // Flash this node visually
-            data.Rage.LastUpgradedNodeId = nodeId;
-            data.Rage.LastUpgradeFlashTime = Time.realtimeSinceStartup;
-
-            player.ChatMessage($"<color=#ffb74d>[OmniRPG]</color> Removed <color=#e57373>{remove}</color> point(s) from <color=#e57373>{cfg.DisplayName}</color>. New level: <color=#e57373>{newLevel}/{cfg.MaxLevel}</color>. Refunded: <color=#e57373>{remove}</color> Rage point(s).");
-
-            // Note: we do NOT lower MaxUnlockedTier here; unlocking is permanent for now
-            SaveData();
+            // Refresh Rage page so player sees the cleared tree
+            ShowMainUi(player, data, "rage");
         }
+
+        
 
         // Admin: adjust numeric config fields from Admin UI
         [ConsoleCommand("omnirpg.admin.adjust")]
@@ -2520,6 +2516,30 @@ namespace Oxide.Plugins
                     AnchorMax = "0.80 0.09"
                 }
             }, parent);
+            // Admin-only: full Rage respec button
+            if (permission.UserHasPermission(player.UserIDString, PERM_ADMIN))
+            {
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.4 0.2 0.2 0.95",
+                        Command = "omnirpg.rage.respec"
+                    },
+                    Text =
+                    {
+                        Text = "Reset Rage Tree",
+                        FontSize = 12,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.82 0.02",
+                        AnchorMax = "0.97 0.09"
+                    }
+                }, parent);
+            }
         }
 
         private void AddRageNodeCircle(
@@ -2535,12 +2555,11 @@ namespace Oxide.Plugins
             bool flashHighlight)
         {
             int level = GetRageNodeLevel(data, nodeId);
-            bool canUpgrade = data.Rage.UnspentPoints > 0 && level < cfg.MaxLevel;
-            bool canDecrease = level > 0;
+            bool canIncrease = data.Rage.UnspentPoints > 0 && level < cfg.MaxLevel;
 
             string nodePanel = parent + ".RageNode." + nodeId;
             string bgColor = flashHighlight ? "0.45 0.32 0.12 0.95" : "0.16 0.16 0.16 0.95";
-            string ringColor = canUpgrade ? "0.95 0.78 0.36 1" : "0.40 0.40 0.40 1";
+            string ringColor = canIncrease ? "0.95 0.78 0.36 1" : "0.40 0.40 0.40 1";
 
             float half = size / 2f;
             string minX = (centerX - half).ToString(CultureInfo.InvariantCulture);
@@ -2597,7 +2616,7 @@ namespace Oxide.Plugins
                 }
             }, nodePanel);
 
-            // "?" inspect button in upper-right of the node
+            // "?" inspect button in upper-right
             container.Add(new CuiButton
             {
                 Button =
@@ -2619,7 +2638,7 @@ namespace Oxide.Plugins
                 }
             }, nodePanel);
 
-            // Level just under icon
+            // Level label
             container.Add(new CuiLabel
             {
                 Text =
@@ -2651,7 +2670,7 @@ namespace Oxide.Plugins
 
             container.Add(new CuiPanel
             {
-                Image = { Color = canUpgrade ? "0.9 0.76 0.35 1" : "0.55 0.55 0.55 1" },
+                Image = { Color = canIncrease ? "0.9 0.76 0.35 1" : "0.55 0.55 0.55 1" },
                 RectTransform =
                 {
                     AnchorMin = "0.20 0.32",
@@ -2659,37 +2678,9 @@ namespace Oxide.Plugins
                 }
             }, nodePanel, nodePanel + ".ProgressFill");
 
-            // Up / Down buttons under the bar
-            bool isMax = level >= cfg.MaxLevel;
-
-            // Decrease (refund) button — left
-            string downCmd = canDecrease ? $"omnirpg.rage.adjust {nodeId} -1" : "";
-            string downColor = canDecrease ? "0.35 0.25 0.25 0.95" : "0.2 0.2 0.2 0.7";
-
-            container.Add(new CuiButton
-            {
-                Button =
-                {
-                    Color = downColor,
-                    Command = downCmd
-                },
-                Text =
-                {
-                    Text = "-1",
-                    FontSize = 12,
-                    Align = TextAnchor.MiddleCenter,
-                    Color = "1 1 1 1"
-                },
-                RectTransform =
-                {
-                    AnchorMin = "0.18 0.16",
-                    AnchorMax = "0.38 0.28"
-                }
-            }, nodePanel);
-
-            // Increase (spend) button — right
-            string upCmd = (canUpgrade && !isMax) ? $"omnirpg.rage.adjust {nodeId} 1" : "";
-            string upColor = (canUpgrade && !isMax) ? "0.3 0.5 0.3 0.95" : "0.2 0.2 0.2 0.7";
+            // Up (▲▲▲) button under the bar
+            string upCmd = canIncrease ? $"omnirpg.rage.adjust {nodeId} 1" : "";
+            string upColor = canIncrease ? "0.3 0.5 0.3 0.95" : "0.2 0.2 0.2 0.7";
 
             container.Add(new CuiButton
             {
@@ -2700,15 +2691,15 @@ namespace Oxide.Plugins
                 },
                 Text =
                 {
-                    Text = "+1",
+                    Text = "▲▲▲",
                     FontSize = 12,
                     Align = TextAnchor.MiddleCenter,
                     Color = "1 1 1 1"
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.62 0.16",
-                    AnchorMax = "0.82 0.28"
+                    AnchorMin = "0.30 0.16",
+                    AnchorMax = "0.70 0.28"
                 }
             }, nodePanel);
         }
