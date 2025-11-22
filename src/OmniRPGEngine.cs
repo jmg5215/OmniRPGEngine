@@ -1021,7 +1021,15 @@ namespace Oxide.Plugins
                 }
 
                 player.inventory.Take(null, def.itemid, r.ItemAmount);
-                player.inventory.SendChanges();
+                try
+                {
+                    // Ensure the player's inventory is updated on the server/client
+                    player.inventory?.ServerUpdate();
+                }
+                catch
+                {
+                    // Some server builds may not expose ServerUpdate; ignore if unavailable
+                }
 
                 player.ChatMessage($"<color=#ffb74d>[OmniRPG]</color> Spent <color=#e57373>{r.ItemAmount}</color> x <color=#e57373>{def.displayName.english}</color> to respec.");
                 return true;
