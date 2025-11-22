@@ -1024,7 +1024,8 @@ namespace Oxide.Plugins
                 try
                 {
                     // Ensure the player's inventory is updated on the server/client
-                    player.inventory?.ServerUpdate();
+                    // Oxide v2 PlayerInventory.ServerUpdate requires a float delta parameter
+                    player.inventory?.ServerUpdate(0f);
                 }
                 catch
                 {
