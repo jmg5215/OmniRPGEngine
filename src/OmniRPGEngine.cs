@@ -9,6 +9,7 @@ using System.Linq;
 using Oxide.Core;
 using Oxide.Core.Configuration;
 using Oxide.Core.Plugins;
+using Newtonsoft.Json;
 using Oxide.Game.Rust.Cui;
 using Rust;
 using UnityEngine;
@@ -27,6 +28,11 @@ namespace Oxide.Plugins
         [PluginReference] private Plugin PermissionsManager;
         [PluginReference("ImageLibrary")] private Plugin ImageLibrary;
         [PluginReference("BotReSpawn")] private Plugin BotReSpawn; // Used to detect BotReSpawn NPCs
+        [PluginReference]
+        private Plugin Economics;
+
+        [PluginReference]
+        private Plugin ServerRewards;
 
         // Track BotReSpawn NPC userIDs so they never pollute player stats / leaderboard
         private readonly HashSet<ulong> botReSpawnIds = new HashSet<ulong>();
@@ -146,6 +152,9 @@ namespace Oxide.Plugins
                     }
                 }
             };
+            
+            // NEW: respec settings
+            public RespecSettings Respec = new RespecSettings();
         }
 
         private class RageNodeConfig
@@ -159,6 +168,29 @@ namespace Oxide.Plugins
             public float BleedChancePerLevel = 0f;
             public float MoveSpeedPerLevel = 0f;
             public float RecoilReductionPerLevel = 0f;
+        }
+
+        // NEW: RespecSettings definition
+        private class RespecSettings
+        {
+            [JsonProperty("Respec Enabled")]
+            public bool Enabled = true;
+
+            // economics / serverrewards / item / none
+            [JsonProperty("Respec Mode")]
+            public string Mode = "economics";
+
+            [JsonProperty("Economics Cost")]
+            public double EconomicsCost = 0;
+
+            [JsonProperty("ServerRewards Cost (RP)")]
+            public int ServerRewardsCost = 0;
+
+            [JsonProperty("Item Shortname")]
+            public string ItemShortname = "scrap";
+
+            [JsonProperty("Item Amount")]
+            public int ItemAmount = 0;
         }
 
         private class BotProfileXpSettings
@@ -903,6 +935,101 @@ namespace Oxide.Plugins
             info.damageTypes.ScaleAll(1f + bonus);
         }
 
+        private bool TryChargeRespecCost(BasePlayer player)
+        {
+            if (player == null)
+                return false;
+
+            var r = config.Rage.Respec;
+            if (!r.Enabled || string.IsNullOrEmpty(r.Mode))
+            {
+                // Respec is effectively free / disabled cost
+                return true;
+            }
+
+            string mode = r.Mode.ToLowerInvariant();
+
+            if (mode == "economics")
+            {
+                if (Economics == null)
+                {
+                    player.ChatMessage("<color=#ffb74d>[OmniRPG]</color> Respec cost is set to Economics, but the Economics plugin is not loaded.");
+                    return false;
+                }
+
+                double balance = 0;
+                var result = Economics.Call("Balance", player.UserIDString);
+                if (result is double d) balance = d;
+                else if (result is float f) balance = f;
+                else if (result is int i) balance = i;
+
+                if (balance < r.EconomicsCost)
+                {
+                    player.ChatMessage($"<color=#ffb74d>[OmniRPG]</color> You need <color=#e57373>{r.EconomicsCost:0}</color> coins to respec.");
+                    return false;
+                }
+
+                Economics.Call("Withdraw", player.UserIDString, r.EconomicsCost);
+                player.ChatMessage($"<color=#ffb74d>[OmniRPG]</color> Spent <color=#e57373>{r.EconomicsCost:0}</color> coins to respec.");
+                return true;
+            }
+
+            if (mode == "serverrewards" || mode == "rustrewards" || mode == "rp")
+            {
+                if (ServerRewards == null)
+                {
+                    player.ChatMessage("<color=#ffb74d>[OmniRPG]</color> Respec cost is set to ServerRewards, but that plugin is not loaded.");
+                    return false;
+                }
+
+                int cost = r.ServerRewardsCost;
+                if (cost <= 0)
+                    return true;
+
+                // ServerRewards API: bool TakePoints(BasePlayer player, int amount)
+                bool success = false;
+                var result = ServerRewards.Call("TakePoints", player, cost);
+                if (result is bool b) success = b;
+
+                if (!success)
+                {
+                    player.ChatMessage($"<color=#ffb74d>[OmniRPG]</color> You need <color=#e57373>{cost}</color> RP to respec.");
+                    return false;
+                }
+
+                player.ChatMessage($"<color=#ffb74d>[OmniRPG]</color> Spent <color=#e57373>{cost}</color> RP to respec.");
+                return true;
+            }
+
+            if (mode == "item")
+            {
+                if (string.IsNullOrEmpty(r.ItemShortname) || r.ItemAmount <= 0)
+                    return true;
+
+                var def = ItemManager.FindItemDefinition(r.ItemShortname);
+                if (def == null)
+                {
+                    player.ChatMessage($"<color=#ffb74d>[OmniRPG]</color> Respec item shortname '<color=#e57373>{r.ItemShortname}</color>' is invalid.");
+                    return false;
+                }
+
+                int have = player.inventory.GetAmount(def.itemid);
+                if (have < r.ItemAmount)
+                {
+                    player.ChatMessage($"<color=#ffb74d>[OmniRPG]</color> You need <color=#e57373>{r.ItemAmount}</color> x <color=#e57373>{def.displayName.english}</color> to respec.");
+                    return false;
+                }
+
+                player.inventory.Take(null, def.itemid, r.ItemAmount);
+                player.inventory.SendChanges();
+
+                player.ChatMessage($"<color=#ffb74d>[OmniRPG]</color> Spent <color=#e57373>{r.ItemAmount}</color> x <color=#e57373>{def.displayName.english}</color> to respec.");
+                return true;
+            }
+
+            // Unknown mode or "none" -> treat as free
+            return true;
+        }
         #endregion
 
         #region Chat + Console Commands
@@ -1167,14 +1294,25 @@ namespace Oxide.Plugins
         {
             var player = arg.Player();
             if (player == null) return;
-            if (!HasPerm(player, PERM_ADMIN)) return;
+            if (!HasPerm(player, PERM_USE, false)) return;
 
             var data = GetOrCreatePlayerData(player);
             if (data == null) return;
 
-            ResetRageTree(player, data);
+            // Charge cost according to config (Economics / ServerRewards / Item / free)
+            if (!TryChargeRespecCost(player))
+                return;
 
-            // Refresh Rage page so player sees the cleared tree
+            int spent = data.Rage.NodeLevels.Values.Sum();
+            data.Rage.NodeLevels.Clear();
+            data.Rage.UnspentPoints += spent;
+
+            player.ChatMessage(
+                $"<color=#ffb74d>[OmniRPG]</color> Rage tree reset. Refunded <color=#e57373>{spent}</color> points.");
+
+            SaveData();
+
+            // Refresh Rage page so the player sees the reset
             ShowMainUi(player, data, "rage");
         }
 
@@ -1194,7 +1332,7 @@ namespace Oxide.Plugins
             var args = arg.Args;
             if (args == null || args.Length < 3) return;
 
-            string category = args[0].ToLower();   // "xp" or "rage"
+            string category = args[0].ToLower();   // "xp" or "rage" or "respec"
             string field = args[1];                // e.g. "BaseKillNpc"
             string deltaStr = args[2];
 
@@ -1214,6 +1352,9 @@ namespace Oxide.Plugins
                     break;
                 case "rage":
                     changed = AdjustRageField(player, field, delta);
+                    break;
+                case "respec":
+                    changed = AdjustRespecField(player, field, delta);
                     break;
                 default:
                     player.ChatMessage($"<color=#ffb74d>[OmniRPG]</color> Unknown category '{category}'.");
@@ -1349,6 +1490,38 @@ namespace Oxide.Plugins
             }
 
             return true;
+        }
+
+        private bool AdjustRespecField(BasePlayer player, string field, double delta)
+        {
+            var r = config.Rage.Respec;
+            bool changed = false;
+
+            switch (field)
+            {
+                case "EconomicsCost":
+                    r.EconomicsCost = Math.Max(0, r.EconomicsCost + delta);
+                    changed = true;
+                    break;
+
+                case "ServerRewardsCost":
+                    r.ServerRewardsCost = Math.Max(0, r.ServerRewardsCost + (int)delta);
+                    changed = true;
+                    break;
+
+                case "ItemAmount":
+                    r.ItemAmount = Math.Max(0, r.ItemAmount + (int)delta);
+                    changed = true;
+                    break;
+            }
+
+            if (changed)
+            {
+                SaveConfig();
+                player.ChatMessage($"<color=#ffb74d>[OmniRPG]</color> Respec {field} adjusted by <color=#e57373>{delta}</color>. Now: Economics={r.EconomicsCost:0}, RP={r.ServerRewardsCost}, ItemAmount={r.ItemAmount}");
+            }
+
+            return changed;
         }
 
 
@@ -2516,6 +2689,66 @@ namespace Oxide.Plugins
                     AnchorMax = "0.80 0.09"
                 }
             }, parent);
+            // --- Rage Reset (Respec) button ---
+            {
+                // Optional: show current cost text based on config
+                string costText;
+                var r = config.Rage.Respec;
+                var mode = (r.Mode ?? string.Empty).ToLowerInvariant();
+
+                if (!r.Enabled || string.IsNullOrEmpty(mode) || mode == "none")
+                {
+                    costText = "Reset Tree (Free)";
+                }
+                else if (mode == "economics")
+                {
+                    costText = $"Reset Tree ({r.EconomicsCost:0} coins)";
+                }
+                else if (mode == "serverrewards" || mode == "rustrewards" || mode == "rp")
+                {
+                    costText = $"Reset Tree ({r.ServerRewardsCost} RP)";
+                }
+                else if (mode == "item")
+                {
+                    costText = $"Reset Tree ({r.ItemAmount} x {r.ItemShortname})";
+                }
+                else
+                {
+                    costText = "Reset Tree";
+                }
+
+                // Bottom-center panel
+                var resetPanel = container.Add(new CuiPanel
+                {
+                    Image = { Color = "0.1 0.1 0.1 0.85" },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.35 0.02",
+                        AnchorMax = "0.65 0.08"
+                    },
+                    CursorEnabled = true
+                }, parent, "omnirpg.rage.reset.panel");
+
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Command = "omnirpg.rage.respec",
+                        Color = "0.8 0.3 0.3 1.0"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.02 0.1",
+                        AnchorMax = "0.98 0.9"
+                    },
+                    Text =
+                    {
+                        Text = costText,
+                        FontSize = 14,
+                        Align = TextAnchor.MiddleCenter
+                    }
+                }, resetPanel);
+            }
             // Admin-only: full Rage respec button
             if (permission.UserHasPermission(player.UserIDString, PERM_ADMIN))
             {
@@ -3564,6 +3797,137 @@ namespace Oxide.Plugins
             AddRageRow("Fury Duration (sec)", "FuryDurationSeconds", config.Rage.FuryDurationSeconds, 1, 5);
             AddRageRow("Fury Max Damage Bonus", "FuryMaxBonusDamage", config.Rage.FuryMaxBonusDamage, 0.05, 0.2);
             AddRageRow("Fury Gain per Kill", "FuryOnKillGain", config.Rage.FuryOnKillGain, 0.01, 0.05);
+
+            // Respec cost rows
+            void AddRespecRow(string label, string field, string displayValue, double stepSmall, double stepBig)
+            {
+                float yMax = rageRowTop;
+                float yMin = yMax - rowHeight;
+                rageRowTop -= rowHeight;
+
+                var rowName = ragePanel + ".Row." + field;
+
+                container.Add(new CuiPanel
+                {
+                    Image =
+                    {
+                        Color = "0.06 0.06 0.06 0.9"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = $"0.03 {yMin}",
+                        AnchorMax = $"0.97 {yMax}"
+                    }
+                }, ragePanel, rowName);
+
+                container.Add(new CuiLabel
+                {
+                    Text =
+                    {
+                        Text = $"{label}: {displayValue}",
+                        FontSize = 12,
+                        Align = TextAnchor.MiddleLeft,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.03 0.1",
+                        AnchorMax = "0.7 0.9"
+                    }
+                }, rowName);
+
+                // -big
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.4 0.2 0.2 0.95",
+                        Command = $"omnirpg.admin.adjust respec {field} {(-stepBig).ToString(CultureInfo.InvariantCulture)}"
+                    },
+                    Text =
+                    {
+                        Text = $"-{stepBig}",
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.72 0.15",
+                        AnchorMax = "0.80 0.85"
+                    }
+                }, rowName);
+
+                // -small
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.35 0.25 0.25 0.95",
+                        Command = $"omnirpg.admin.adjust respec {field} {(-stepSmall).ToString(CultureInfo.InvariantCulture)}"
+                    },
+                    Text =
+                    {
+                        Text = $"-{stepSmall}",
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.81 0.15",
+                        AnchorMax = "0.87 0.85"
+                    }
+                }, rowName);
+
+                // +small
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.25 0.35 0.25 0.95",
+                        Command = $"omnirpg.admin.adjust respec {field} {stepSmall.ToString(CultureInfo.InvariantCulture)}"
+                    },
+                    Text =
+                    {
+                        Text = $"+{stepSmall}",
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.88 0.15",
+                        AnchorMax = "0.94 0.85"
+                    }
+                }, rowName);
+
+                // +big
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.25 0.4 0.25 0.95",
+                        Command = $"omnirpg.admin.adjust respec {field} {stepBig.ToString(CultureInfo.InvariantCulture)}"
+                    },
+                    Text =
+                    {
+                        Text = $"+{stepBig}",
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.95 0.15",
+                        AnchorMax = "1.01 0.85"
+                    }
+                }, rowName);
+            }
+
+            AddRespecRow("Respec Econ Cost", "EconomicsCost", config.Rage.Respec.EconomicsCost.ToString("0.###"), 100, 500);
+            AddRespecRow("Respec RP Cost", "ServerRewardsCost", config.Rage.Respec.ServerRewardsCost.ToString(), 10, 50);
+            AddRespecRow("Respec Item Amount", "ItemAmount", config.Rage.Respec.ItemAmount.ToString(), 1, 5);
 
             // Button to open BotReSpawn XP settings page
             container.Add(new CuiButton
