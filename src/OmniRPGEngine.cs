@@ -8,193 +8,193 @@ using System.Globalization;
 using System.Linq;
 using Oxide.Core;
 using Oxide.Core.Configuration;
-using Oxide.Core.Plugins;
-using Oxide.Game.Rust.Cui;
-using Rust;
-using UnityEngine;
-
-namespace Oxide.Plugins
-{
-    [Info("OmniRPGEngine", "Somescrub", "0.3.1")]
-    [Description("Universal RPG framework providing XP, levels and discipline-based skill trees (Rage MVP).")]
-    public class OmniRPGEngine : RustPlugin
-    {
-        #region Permissions / References
-
-        private const string PERM_USE = "omnirpgengine.use";
-        private const string PERM_ADMIN = "omnirpgengine.admin";
-
-        [PluginReference] private Plugin PermissionsManager;
-        [PluginReference("ImageLibrary")] private Plugin ImageLibrary;
-        [PluginReference("BotReSpawn")] private Plugin BotReSpawn; // Used to detect BotReSpawn NPCs
-
-        // Track BotReSpawn NPC userIDs so they never pollute player stats / leaderboard
-        private readonly HashSet<ulong> botReSpawnIds = new HashSet<ulong>();
-
-        // Per-player Bot XP page index for pagination
-        private readonly Dictionary<ulong, int> botXpPage = new Dictionary<ulong, int>();
-
-        #endregion
-
-        #region Config
-
-        private PluginConfig config;
-
-        private class PluginConfig
+        private void AddRageNodeCircle(
+            BasePlayer player,
+            PlayerData data,
+            string parent,
+            CuiElementContainer container,
+            string nodeId,
+            RageNodeConfig cfg,
+            float centerX,
+            float centerY,
+            float size,
+            bool flashHighlight)
         {
-            public string DataFileName = "OmniRPGEngine_Data";
+            int level = GetRageNodeLevel(data, nodeId);
+            bool canIncrease = data.Rage.UnspentPoints > 0 && level < cfg.MaxLevel;
+            bool canDecrease = level > 0;
 
-            public XpSettings XP = new XpSettings();
-            public RageSettings Rage = new RageSettings();
-            public UiSettings UI = new UiSettings();
+            string nodePanel = parent + ".RageNode." + nodeId;
+            string bgColor = flashHighlight ? "0.45 0.32 0.12 0.95" : "0.16 0.16 0.16 0.95";
+            string ringColor = canIncrease ? "0.95 0.78 0.36 1" : "0.40 0.40 0.40 1";
 
-            public static PluginConfig DefaultConfig()
+            float half = size / 2f;
+            string minX = (centerX - half).ToString(CultureInfo.InvariantCulture);
+            string minY = (centerY - half).ToString(CultureInfo.InvariantCulture);
+            string maxX = (centerX + half).ToString(CultureInfo.InvariantCulture);
+            string maxY = (centerY + half).ToString(CultureInfo.InvariantCulture);
+
+            // Base "circle"
+            container.Add(new CuiPanel
             {
-                return new PluginConfig();
-            }
-        }
-
-        private class UiSettings
-        {
-            public string ProfileCommand = "orpgxp";
-            public string RageCommand = "orpgrage";
-            public string UiCommand = "orpgui";
-
-            public float AnchorMinX = 0.2f;
-            public float AnchorMinY = 0.1f;
-            public float AnchorMaxX = 0.8f;
-            public float AnchorMaxY = 0.9f;
-        }
-
-        private class XpSettings
-        {
-            public double BaseKillNpc = 25;
-            public double BaseKillPlayer = 50;
-            public double BaseGatherOre = 2;
-            public double BaseGatherWood = 1;
-            public double BaseGatherPlants = 1.5;
-
-            // Per-source multipliers so server owners can tune them
-            public double BotReSpawnMultiplier = 1.0;
-            public double NpcSpawnMultiplier = 1.0;
-            public double ZombieHordeMultiplier = 1.0;
-
-            public double LevelCurveBase = 100;    // XP for level 1→2
-            public double LevelCurveGrowth = 1.25; // Each level multiplies required XP by this
-
-            // Legacy per BotReSpawn profile multipliers (for migration)
-            public Dictionary<string, double> BotReSpawnProfileMultipliers = new Dictionary<string, double>();
-
-            // New full settings (per profile)
-            public Dictionary<string, BotProfileXpSettings> BotReSpawnProfiles = new Dictionary<string, BotProfileXpSettings>();
-        }
-
-        private class RageSettings
-        {
-            public bool Enabled = true;
-
-            // How many discipline points per character level
-            public double CorePointsPerLevel = 1.0;
-
-            // Fury shared settings
-            public float FuryDurationSeconds = 10f;
-            public float FuryMaxBonusDamage = 0.3f; // 30% at max Fury
-            public float FuryOnKillGain = 0.15f;    // 15% fury per qualifying kill
-
-            // Weapon specialization nodes – values here are per level
-            public Dictionary<string, RageNodeConfig> Nodes = new Dictionary<string, RageNodeConfig>
-            {
+                Image = { Color = bgColor },
+                RectTransform =
                 {
-                    "core",
-                    new RageNodeConfig
-                    {
-                        DisplayName = "Rage",
-                        MaxLevel = 20,
-                        DamageBonusPerLevel = 0.01f,
-                        RecoilReductionPerLevel = 0.005f,
-                        MoveSpeedPerLevel = 0.0025f
-                    }
-                },
-                {
-                    "rifle",
-                    new RageNodeConfig
-                    {
-                        DisplayName = "Rifle Mastery",
-                        MaxLevel = 10,
-                        DamageBonusPerLevel = 0.02f,
-                        CritChancePerLevel = 0.01f
-                    }
-                },
-                {
-                    "shotgun",
-                    new RageNodeConfig
-                    {
-                        DisplayName = "Shotgun Savagery",
-                        MaxLevel = 10,
-                        DamageBonusPerLevel = 0.02f,
-                        BleedChancePerLevel = 0.015f
-                    }
-                },
-                {
-                    "pistol",
-                    new RageNodeConfig
-                    {
-                        DisplayName = "Pistol Precision",
-                        MaxLevel = 10,
-                        DamageBonusPerLevel = 0.015f,
-                        CritDamagePerLevel = 0.015f
-                    }
+                    AnchorMin = $"{minX} {minY}",
+                    AnchorMax = $"{maxX} {maxY}"
                 }
-            };
-        }
+            }, parent, nodePanel);
 
-        private class RageNodeConfig
-        {
-            public string DisplayName = "Unnamed";
-            public int MaxLevel = 10;
-
-            public float DamageBonusPerLevel = 0f;
-            public float CritChancePerLevel = 0f;
-            public float CritDamagePerLevel = 0f;
-            public float BleedChancePerLevel = 0f;
-            public float MoveSpeedPerLevel = 0f;
-            public float RecoilReductionPerLevel = 0f;
-        }
-
-        private class BotProfileXpSettings
-        {
-            public double Multiplier = 1.0;
-            public double FlatXp = 0.0;
-        }
-
-        protected override void LoadDefaultConfig()
-        {
-            config = PluginConfig.DefaultConfig();
-            SaveConfig();
-        }
-
-        protected override void LoadConfig()
-        {
-            base.LoadConfig();
-            try
+            // Outer ring
+            container.Add(new CuiPanel
             {
-                config = Config.ReadObject<PluginConfig>();
-                if (config == null)
+                Image = { Color = ringColor },
+                RectTransform =
                 {
-                    throw new Exception("Config file is null");
+                    AnchorMin = "0.06 0.06",
+                    AnchorMax = "0.94 0.94"
                 }
+            }, nodePanel, nodePanel + ".Ring");
 
-                if (config.XP.BotReSpawnProfiles == null)
-                    config.XP.BotReSpawnProfiles = new Dictionary<string, BotProfileXpSettings>();
-
-                // Migration from legacy BotReSpawnProfileMultipliers if needed
-                if (config.XP.BotReSpawnProfileMultipliers != null &&
-                    config.XP.BotReSpawnProfileMultipliers.Count > 0 &&
-                    (config.XP.BotReSpawnProfiles == null || config.XP.BotReSpawnProfiles.Count == 0))
+            // Icon / title area (top ~40%)
+            container.Add(new CuiPanel
+            {
+                Image = { Color = "0.05 0.05 0.05 0.95" },
+                RectTransform =
                 {
-                    foreach (var kvp in config.XP.BotReSpawnProfileMultipliers)
-                    {
-                        config.XP.BotReSpawnProfiles[kvp.Key] = new BotProfileXpSettings
+                    AnchorMin = "0.14 0.52",
+                    AnchorMax = "0.86 0.90"
+                }
+            }, nodePanel, nodePanel + ".IconBg");
+
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text = cfg.DisplayName,
+                    FontSize = 13,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = "1 0.9 0.7 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.16 0.54",
+                    AnchorMax = "0.84 0.88"
+                }
+            }, nodePanel);
+
+            // "?" inspect button in upper-right
+            container.Add(new CuiButton
+            {
+                Button =
+                {
+                    Color = "0.25 0.35 0.45 0.95",
+                    Command = $"omnirpg.rage.inspect {nodeId}"
+                },
+                Text =
+                {
+                    Text = "?",
+                    FontSize = 12,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = "1 1 1 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.76 0.74",
+                    AnchorMax = "0.92 0.92"
+                }
+            }, nodePanel);
+
+            // Level label
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text = $"Lv {level}/{cfg.MaxLevel}",
+                    FontSize = 12,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = "0.95 0.95 0.95 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.14 0.40",
+                    AnchorMax = "0.86 0.52"
+                }
+            }, nodePanel);
+
+            // Compact centered progress bar
+            float progress = cfg.MaxLevel > 0 ? Mathf.Clamp01(level / (float)cfg.MaxLevel) : 0f;
+
+            container.Add(new CuiPanel
+            {
+                Image = { Color = "0.15 0.15 0.15 1" },
+                RectTransform =
+                {
+                    AnchorMin = "0.20 0.32",
+                    AnchorMax = "0.80 0.38"
+                }
+            }, nodePanel, nodePanel + ".ProgressBg");
+
+            container.Add(new CuiPanel
+            {
+                Image = { Color = canIncrease ? "0.9 0.76 0.35 1" : "0.55 0.55 0.55 1" },
+                RectTransform =
+                {
+                    AnchorMin = "0.20 0.32",
+                    AnchorMax = $"{(0.20f + 0.60f * progress).ToString(CultureInfo.InvariantCulture)} 0.38"
+                }
+            }, nodePanel, nodePanel + ".ProgressFill");
+
+            // Down (▼▼▼) button under the bar, left
+            string downCmd = canDecrease ? $"omnirpg.rage.adjust {nodeId} -1" : "";
+            string downColor = canDecrease ? "0.35 0.25 0.25 0.95" : "0.2 0.2 0.2 0.7";
+
+            container.Add(new CuiButton
+            {
+                Button =
+                {
+                    Color = downColor,
+                    Command = downCmd
+                },
+                Text =
+                {
+                    Text = "▼▼▼",
+                    FontSize = 12,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = "1 1 1 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.18 0.16",
+                    AnchorMax = "0.38 0.28"
+                }
+            }, nodePanel);
+
+            // Up (▲▲▲) button under the bar, right
+            string upCmd = canIncrease ? $"omnirpg.rage.adjust {nodeId} 1" : "";
+            string upColor = canIncrease ? "0.3 0.5 0.3 0.95" : "0.2 0.2 0.2 0.7";
+
+            container.Add(new CuiButton
+            {
+                Button =
+                {
+                    Color = upColor,
+                    Command = upCmd
+                },
+                Text =
+                {
+                    Text = "▲▲▲",
+                    FontSize = 12,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = "1 1 1 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.62 0.16",
+                    AnchorMax = "0.82 0.28"
+                }
+            }, nodePanel);
+        }
                         {
                             Multiplier = kvp.Value,
                             FlatXp = 0.0
@@ -347,6 +347,7 @@ namespace Oxide.Plugins
             cmd.AddConsoleCommand("omnirpg.ui", this, "CCmdOpenUi");
             cmd.AddConsoleCommand("omnirpg.rage.upgrade", this, "CCmdRageUpgrade");
             cmd.AddConsoleCommand("omnirpg.rage.inspect", this, "CCmdRageInspect");
+            cmd.AddConsoleCommand("omnirpg.rage.adjust", this, "CCmdRageAdjust");
 
             // Admin config editor commands
             cmd.AddConsoleCommand("omnirpg.admin.adjust", this, "CCmdAdminAdjust");
@@ -1042,6 +1043,44 @@ namespace Oxide.Plugins
             SaveData();
         }
 
+        private void DeallocateRagePoints(BasePlayer player, PlayerData data, string nodeId, int points)
+        {
+            RageNodeConfig cfg;
+            if (!config.Rage.Nodes.TryGetValue(nodeId, out cfg))
+                return;
+
+            int current = GetRageNodeLevel(data, nodeId);
+            if (current <= 0) return;
+
+            int remove = Math.Min(points, current);
+            int newLevel = current - remove;
+
+            if (newLevel <= 0)
+            {
+                if (data.Rage.NodeLevels.ContainsKey(nodeId))
+                    data.Rage.NodeLevels.Remove(nodeId);
+            }
+            else
+            {
+                data.Rage.NodeLevels[nodeId] = newLevel;
+            }
+
+            // Refund Rage points
+            data.Rage.UnspentPoints += remove;
+
+            // Keep the visual flash behavior
+            data.Rage.LastUpgradedNodeId = nodeId;
+            data.Rage.LastUpgradeFlashTime = Time.realtimeSinceStartup;
+
+            player.ChatMessage(
+                $"<color=#ffb74d>[OmniRPG]</color> Removed <color=#e57373>{remove}</color> point(s) from " +
+                $"<color=#e57373>{cfg.DisplayName}</color>. New level: <color=#e57373>{newLevel}/{cfg.MaxLevel}</color>. " +
+                $"Rage points: <color=#e57373>{data.Rage.UnspentPoints}</color>");
+
+            // NOTE: We intentionally do NOT reduce MaxUnlockedTier if they respec.
+            SaveData();
+        }
+
         private void ShowRageSummary(BasePlayer player, PlayerData data)
         {
             var parts = new List<string>
@@ -1113,6 +1152,36 @@ namespace Oxide.Plugins
 
             // Refresh Rage UI page
             ShowMainUi(player, data, "rage");
+        }
+
+        [ConsoleCommand("omnirpg.rage.adjust")]
+        private void CCmdRageAdjust(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null) return;
+            if (!HasPerm(player, PERM_USE, false)) return;
+
+            var data = GetOrCreatePlayerData(player);
+            if (data == null) return;
+
+            var args = arg.Args;
+            if (args == null || args.Length < 2) return;
+
+            var nodeId = args[0].ToLower();
+            int delta;
+            if (!int.TryParse(args[1], out delta) || delta == 0)
+                return;
+
+            if (delta > 0)
+            {
+                // Increase node level
+                AllocateRagePoints(player, data, nodeId, delta);
+            }
+            else
+            {
+                // Decrease node level (refund points)
+                DeallocateRagePoints(player, data, nodeId, -delta);
+            }
         }
 
         // Admin: adjust numeric config fields from Admin UI
