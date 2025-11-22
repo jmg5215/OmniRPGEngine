@@ -262,10 +262,14 @@ namespace Oxide.Plugins
             // Fury
             public float FuryAmount; // 0–1
             public double FuryExpireTimestamp;
+
             // UI helpers
             public string LastUpgradedNodeId;
             public double LastUpgradeFlashTime;
             public string SelectedNodeId;
+
+            // Progress: highest unlocked Rage tier (1 = Tier 1 only, 2 = Tier 2 unlocked, etc.)
+            public int MaxUnlockedTier = 1;
 
             public RageData()
             {
@@ -274,6 +278,7 @@ namespace Oxide.Plugins
                 LastUpgradedNodeId = null;
                 LastUpgradeFlashTime = 0;
                 SelectedNodeId = null;
+                MaxUnlockedTier = 1;
             }
         }
 
@@ -1012,15 +1017,26 @@ namespace Oxide.Plugins
             }
 
             data.Rage.UnspentPoints -= spend;
-            data.Rage.NodeLevels[nodeId] = current + spend;
+            int newLevel = current + spend;
+            data.Rage.NodeLevels[nodeId] = newLevel;
 
-            // Record this node as the last-upgraded one for the tree UI flash highlight
+            // Record for tree flash highlight
             data.Rage.LastUpgradedNodeId = nodeId;
             data.Rage.LastUpgradeFlashTime = Time.realtimeSinceStartup;
 
+            // Tier unlock: core node is the Tier 1 "Super Skill".
+            // When it reaches max level, unlock Tier 2.
+            if (nodeId.Equals("core", StringComparison.OrdinalIgnoreCase) &&
+                newLevel >= cfg.MaxLevel &&
+                data.Rage.MaxUnlockedTier < 2)
+            {
+                data.Rage.MaxUnlockedTier = 2;
+                player.ChatMessage("<color=#ffb74d>[OmniRPG]</color> Your mastery of Rage unlocks <color=#e57373>Tier 2</color>!");
+            }
+
             player.ChatMessage(
                 $"<color=#ffb74d>[OmniRPG]</color> Allocated <color=#e57373>{spend}</color> point(s) to " +
-                $"<color=#e57373>{cfg.DisplayName}</color>. New level: <color=#e57373>{current + spend}/{cfg.MaxLevel}</color>. " +
+                $"<color=#e57373>{cfg.DisplayName}</color>. New level: <color=#e57373>{newLevel}/{cfg.MaxLevel}</color>. " +
                 $"Remaining Rage points: <color=#e57373>{data.Rage.UnspentPoints}</color>");
 
             SaveData();
@@ -2149,14 +2165,11 @@ namespace Oxide.Plugins
                 }
             }, parent, treePanel);
 
-            // Tier selector strip (visual only for now)
+            // Tier selector strip
             var tierStrip = treePanel + ".TierStrip";
             container.Add(new CuiPanel
             {
-                Image =
-                {
-                    Color = "0.08 0.08 0.08 0.9"
-                },
+                Image = { Color = "0.08 0.08 0.08 0.9" },
                 RectTransform =
                 {
                     AnchorMin = "0.03 0.82",
@@ -2164,10 +2177,13 @@ namespace Oxide.Plugins
                 }
             }, treePanel, tierStrip);
 
-            // Simple three-tier layout: Tier 1 enabled, others locked for now
-            AddTierTab(container, tierStrip, "Tier 1", "rage", 0.03f, 0.31f, true);
-            AddTierTab(container, tierStrip, "Tier 2", null,  0.35f, 0.63f, false);
-            AddTierTab(container, tierStrip, "Tier 3", null,  0.67f, 0.95f, false);
+            bool tier1Unlocked = true;
+            bool tier2Unlocked = data.Rage.MaxUnlockedTier >= 2;
+            bool tier3Unlocked = data.Rage.MaxUnlockedTier >= 3;
+
+            AddTierTab(container, tierStrip, "Tier 1", "rage", 0.03f, 0.31f, tier1Unlocked);
+            AddTierTab(container, tierStrip, "Tier 2", null,  0.35f, 0.63f, tier2Unlocked);
+            AddTierTab(container, tierStrip, "Tier 3", null,  0.67f, 0.95f, tier3Unlocked);
 
             // Right: context + total buff summary
             var rightPanel = parent + ".RageRight";
@@ -2267,7 +2283,7 @@ namespace Oxide.Plugins
             }
 
             // Draw nodes (more circular, no inline description)
-            float nodeSize = 0.20f;
+            float nodeSize = 0.16f;
             foreach (var kvp in nodePositions)
             {
                 var nodeId = kvp.Key;
@@ -2462,13 +2478,10 @@ namespace Oxide.Plugins
             string maxX = (centerX + half).ToString(CultureInfo.InvariantCulture);
             string maxY = (centerY + half).ToString(CultureInfo.InvariantCulture);
 
-            // Base "circle" panel
+            // Base "circle"
             container.Add(new CuiPanel
             {
-                Image =
-                {
-                    Color = bgColor
-                },
+                Image = { Color = bgColor },
                 RectTransform =
                 {
                     AnchorMin = $"{minX} {minY}",
@@ -2479,28 +2492,22 @@ namespace Oxide.Plugins
             // Outer ring
             container.Add(new CuiPanel
             {
-                Image =
-                {
-                    Color = ringColor
-                },
+                Image = { Color = ringColor },
                 RectTransform =
                 {
-                    AnchorMin = "0.05 0.05",
-                    AnchorMax = "0.95 0.95"
+                    AnchorMin = "0.06 0.06",
+                    AnchorMax = "0.94 0.94"
                 }
             }, nodePanel, nodePanel + ".Ring");
 
-            // Icon / title area (top 40%)
+            // Icon / title area (top ~40%)
             container.Add(new CuiPanel
             {
-                Image =
-                {
-                    Color = "0.05 0.05 0.05 0.95"
-                },
+                Image = { Color = "0.05 0.05 0.05 0.95" },
                 RectTransform =
                 {
-                    AnchorMin = "0.12 0.50",
-                    AnchorMax = "0.88 0.92"
+                    AnchorMin = "0.14 0.52",
+                    AnchorMax = "0.86 0.90"
                 }
             }, nodePanel, nodePanel + ".IconBg");
 
@@ -2515,12 +2522,12 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.15 0.52",
-                    AnchorMax = "0.85 0.90"
+                    AnchorMin = "0.16 0.54",
+                    AnchorMax = "0.84 0.88"
                 }
             }, nodePanel);
 
-            // Small "?" help / inspect button in upper-right
+            // "?" inspect button in upper-right of the node
             container.Add(new CuiButton
             {
                 Button =
@@ -2537,12 +2544,12 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.78 0.72",
-                    AnchorMax = "0.93 0.92"
+                    AnchorMin = "0.76 0.74",
+                    AnchorMax = "0.92 0.92"
                 }
             }, nodePanel);
 
-            // Level label just under icon area
+            // Level just under icon
             container.Add(new CuiLabel
             {
                 Text =
@@ -2554,41 +2561,35 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.12 0.38",
-                    AnchorMax = "0.88 0.50"
+                    AnchorMin = "0.14 0.40",
+                    AnchorMax = "0.86 0.52"
                 }
             }, nodePanel);
 
-            // Centered progress bar (shrunken)
+            // Compact centered progress bar
             float progress = cfg.MaxLevel > 0 ? Mathf.Clamp01(level / (float)cfg.MaxLevel) : 0f;
 
             container.Add(new CuiPanel
             {
-                Image =
-                {
-                    Color = "0.15 0.15 0.15 1"
-                },
+                Image = { Color = "0.15 0.15 0.15 1" },
                 RectTransform =
                 {
-                    AnchorMin = "0.18 0.30",
-                    AnchorMax = "0.82 0.36"
+                    AnchorMin = "0.20 0.32",
+                    AnchorMax = "0.80 0.38"
                 }
             }, nodePanel, nodePanel + ".ProgressBg");
 
             container.Add(new CuiPanel
             {
-                Image =
-                {
-                    Color = canUpgrade ? "0.9 0.76 0.35 1" : "0.55 0.55 0.55 1"
-                },
+                Image = { Color = canUpgrade ? "0.9 0.76 0.35 1" : "0.55 0.55 0.55 1" },
                 RectTransform =
                 {
-                    AnchorMin = "0.18 0.30",
-                    AnchorMax = $"{(0.18f + 0.64f * progress).ToString(CultureInfo.InvariantCulture)} 0.36"
+                    AnchorMin = "0.20 0.32",
+                    AnchorMax = $"{(0.20f + 0.60f * progress).ToString(CultureInfo.InvariantCulture)} 0.38"
                 }
             }, nodePanel, nodePanel + ".ProgressFill");
 
-            // Upgrade button below the bar
+            // Upgrade button under the bar
             bool isMax = level >= cfg.MaxLevel;
             string cmd = (canUpgrade && !isMax) ? $"omnirpg.rage.upgrade {nodeId}" : "";
             string btnColor = (canUpgrade && !isMax) ? "0.3 0.5 0.3 0.95" : "0.2 0.2 0.2 0.7";
@@ -2609,8 +2610,8 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.28 0.15",
-                    AnchorMax = "0.72 0.28"
+                    AnchorMin = "0.30 0.16",
+                    AnchorMax = "0.70 0.28"
                 }
             }, nodePanel);
         }
