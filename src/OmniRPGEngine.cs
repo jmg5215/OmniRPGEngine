@@ -1943,6 +1943,196 @@ namespace Oxide.Plugins
             }, parent);
         }
 
+        private void AddRageNodeCircle(
+            BasePlayer player,
+            PlayerData data,
+            string parent,
+            CuiElementContainer container,
+            string nodeId,
+            RageNodeConfig cfg,
+            float centerX,
+            float centerY,
+            float size,
+            bool flashHighlight)
+        {
+            int level = GetRageNodeLevel(data, nodeId);
+            bool canUpgrade = data.Rage.UnspentPoints > 0 && level < cfg.MaxLevel;
+
+            // Base panel (node "circle")
+            string nodePanel = parent + ".RageNode." + nodeId;
+            string bgColor = flashHighlight ? "0.45 0.32 0.12 0.95" : "0.16 0.16 0.16 0.95";
+            string ringColor = canUpgrade ? "0.95 0.78 0.36 1" : "0.40 0.40 0.40 1";
+
+            float half = size / 2f;
+            string minX = (centerX - half).ToString(CultureInfo.InvariantCulture);
+            string minY = (centerY - half).ToString(CultureInfo.InvariantCulture);
+            string maxX = (centerX + half).ToString(CultureInfo.InvariantCulture);
+            string maxY = (centerY + half).ToString(CultureInfo.InvariantCulture);
+
+            container.Add(new CuiPanel
+            {
+                Image =
+                {
+                    Color = bgColor
+                },
+                RectTransform =
+                {
+                    AnchorMin = $"{minX} {minY}",
+                    AnchorMax = $"{maxX} {maxY}"
+                }
+            }, parent, nodePanel);
+
+            // Outer "ring"
+            container.Add(new CuiPanel
+            {
+                Image =
+                {
+                    Color = ringColor
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.05 0.05",
+                    AnchorMax = "0.95 0.95"
+                }
+            }, nodePanel, nodePanel + ".Ring");
+
+            // Icon area (top portion)
+            container.Add(new CuiPanel
+            {
+                Image =
+                {
+                    Color = "0.05 0.05 0.05 0.95"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.12 0.45",
+                    AnchorMax = "0.88 0.92"
+                }
+            }, nodePanel, nodePanel + ".IconBg");
+
+            // Placeholder text for icon (later we can hook ImageLibrary here)
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text = cfg.DisplayName,
+                    FontSize = 13,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = "1 0.9 0.7 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.15 0.45",
+                    AnchorMax = "0.85 0.92"
+                }
+            }, nodePanel);
+
+            // Level + max
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text = $"Lv {level}/{cfg.MaxLevel}",
+                    FontSize = 12,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = "0.95 0.95 0.95 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.12 0.30",
+                    AnchorMax = "0.88 0.45"
+                }
+            }, nodePanel);
+
+            // Simple "rings" as a horizontal progress bar
+            float progress = cfg.MaxLevel > 0 ? Mathf.Clamp01(level / (float)cfg.MaxLevel) : 0f;
+
+            container.Add(new CuiPanel
+            {
+                Image =
+                {
+                    Color = "0.15 0.15 0.15 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.12 0.22",
+                    AnchorMax = "0.88 0.28"
+                }
+            }, nodePanel, nodePanel + ".ProgressBg");
+
+            container.Add(new CuiPanel
+            {
+                Image =
+                {
+                    Color = canUpgrade ? "0.9 0.76 0.35 1" : "0.55 0.55 0.55 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.12 0.22",
+                    AnchorMax = $"{(0.12f + 0.76f * progress).ToString(CultureInfo.InvariantCulture)} 0.28"
+                }
+            }, nodePanel, nodePanel + ".ProgressFill");
+
+            // Description under the node (tooltip-style text)
+            var descLines = new List<string>();
+            if (cfg.DamageBonusPerLevel != 0)
+                descLines.Add($"+{cfg.DamageBonusPerLevel * 100f:0.#}% damage / level");
+            if (cfg.CritChancePerLevel != 0)
+                descLines.Add($"+{cfg.CritChancePerLevel * 100f:0.#}% crit chance / level");
+            if (cfg.CritDamagePerLevel != 0)
+                descLines.Add($"+{cfg.CritDamagePerLevel * 100f:0.#}% crit damage / level");
+            if (cfg.BleedChancePerLevel != 0)
+                descLines.Add($"+{cfg.BleedChancePerLevel * 100f:0.#}% bleed chance / level");
+            if (cfg.MoveSpeedPerLevel != 0)
+                descLines.Add($"+{cfg.MoveSpeedPerLevel * 100f:0.#}% move speed / level");
+            if (cfg.RecoilReductionPerLevel != 0)
+                descLines.Add($"-{cfg.RecoilReductionPerLevel * 100f:0.#}% recoil / level");
+
+            string descText = descLines.Count == 0 ? "No bonuses configured yet." : string.Join("\n", descLines);
+
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text = descText,
+                    FontSize = 11,
+                    Align = TextAnchor.UpperLeft,
+                    Color = "0.9 0.9 0.9 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.08 0.02",
+                    AnchorMax = "0.92 0.22"
+                }
+            }, nodePanel);
+
+            // Upgrade button
+            bool isMax = level >= cfg.MaxLevel;
+            string cmd = (canUpgrade && !isMax) ? $"omnirpg.rage.upgrade {nodeId}" : "";
+            string btnColor = (canUpgrade && !isMax) ? "0.3 0.5 0.3 0.95" : "0.2 0.2 0.2 0.7";
+
+            container.Add(new CuiButton
+            {
+                Button =
+                {
+                    Color = btnColor,
+                    Command = cmd
+                },
+                Text =
+                {
+                    Text = isMax ? "Max" : "+1",
+                    FontSize = 12,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = "1 1 1 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.70 0.30",
+                    AnchorMax = "0.92 0.45"
+                }
+            }, nodePanel);
+        }
+
 // Bot XP page (per-profile multiplier + flat XP)
         private void BuildBotXpPage(BasePlayer player, PlayerData data, string parent, CuiElementContainer container)
         {
