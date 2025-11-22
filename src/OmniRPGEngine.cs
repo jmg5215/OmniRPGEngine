@@ -262,10 +262,10 @@ namespace Oxide.Plugins
             // Fury
             public float FuryAmount; // 0–1
             public double FuryExpireTimestamp;
-
-            // Visual feedback for the last-upgraded Rage node in the tree UI
+            // UI helpers
             public string LastUpgradedNodeId;
             public double LastUpgradeFlashTime;
+            public string SelectedNodeId;
 
             public RageData()
             {
@@ -273,6 +273,7 @@ namespace Oxide.Plugins
                 FuryExpireTimestamp = 0;
                 LastUpgradedNodeId = null;
                 LastUpgradeFlashTime = 0;
+                SelectedNodeId = null;
             }
         }
 
@@ -340,6 +341,7 @@ namespace Oxide.Plugins
 
             cmd.AddConsoleCommand("omnirpg.ui", this, "CCmdOpenUi");
             cmd.AddConsoleCommand("omnirpg.rage.upgrade", this, "CCmdRageUpgrade");
+            cmd.AddConsoleCommand("omnirpg.rage.inspect", this, "CCmdRageInspect");
 
             // Admin config editor commands
             cmd.AddConsoleCommand("omnirpg.admin.adjust", this, "CCmdAdminAdjust");
@@ -1047,6 +1049,31 @@ namespace Oxide.Plugins
         }
 
         // Console command used by Rage UI "Upgrade" buttons
+        [ConsoleCommand("omnirpg.rage.inspect")]
+        private void CCmdRageInspect(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null) return;
+            if (!HasPerm(player, PERM_USE, false)) return;
+
+            var data = GetOrCreatePlayerData(player);
+            if (data == null) return;
+
+            var args = arg.Args;
+            if (args == null || args.Length == 0) return;
+
+            var nodeId = args[0].ToLower();
+            RageNodeConfig cfg;
+            if (!config.Rage.Nodes.TryGetValue(nodeId, out cfg))
+                return;
+
+            data.Rage.SelectedNodeId = nodeId;
+            SaveData();
+
+            // Reopen Rage page so the right-hand context updates
+            ShowMainUi(player, data, "rage");
+        }
+
         [ConsoleCommand("omnirpg.rage.upgrade")]
         private void CCmdRageUpgrade(ConsoleSystem.Arg arg)
         {
@@ -1783,7 +1810,6 @@ namespace Oxide.Plugins
             }, parent);
         }
 
-        // Rage tree UI page
         private void BuildRagePage(BasePlayer player, PlayerData data, string parent, CuiElementContainer container)
         {
             // Header
@@ -1842,7 +1868,7 @@ namespace Oxide.Plugins
                 }
             }, summaryPanel);
 
-            // Main Rage tree canvas
+            // Left: Rage tree canvas
             var treePanel = parent + ".RageTreeArea";
             container.Add(new CuiPanel
             {
@@ -1853,9 +1879,54 @@ namespace Oxide.Plugins
                 RectTransform =
                 {
                     AnchorMin = "0.03 0.10",
-                    AnchorMax = "0.97 0.78"
+                    AnchorMax = "0.70 0.78"
                 }
             }, parent, treePanel);
+
+            // Right: context + total buff summary
+            var rightPanel = parent + ".RageRight";
+            container.Add(new CuiPanel
+            {
+                Image =
+                {
+                    Color = "0.06 0.06 0.06 0.95"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.71 0.10",
+                    AnchorMax = "0.97 0.78"
+                }
+            }, parent, rightPanel);
+
+            // Top half: selected node details
+            var detailPanel = rightPanel + ".Details";
+            container.Add(new CuiPanel
+            {
+                Image =
+                {
+                    Color = "0.10 0.10 0.10 0.95"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.03 0.50",
+                    AnchorMax = "0.97 0.97"
+                }
+            }, rightPanel, detailPanel);
+
+            // Bottom half: total combined Rage buffs
+            var summaryBuffPanel = rightPanel + ".BuffSummary";
+            container.Add(new CuiPanel
+            {
+                Image =
+                {
+                    Color = "0.09 0.09 0.09 0.95"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.03 0.03",
+                    AnchorMax = "0.97 0.48"
+                }
+            }, rightPanel, summaryBuffPanel);
 
             // Compute flash info for last-upgraded node
             string flashNode = data.Rage.LastUpgradedNodeId;
@@ -1868,7 +1939,6 @@ namespace Oxide.Plugins
             }
 
             // Predefined positions for the Rage nodes (normalized coordinates in treePanel)
-            // Layout: core at top center, weapon nodes along the bottom row.
             var nodePositions = new Dictionary<string, Vector2>
             {
                 { "core",    new Vector2(0.50f, 0.70f) },
@@ -1892,7 +1962,6 @@ namespace Oxide.Plugins
                 float minY = Math.Min(from.y, to.y);
                 float maxY = Math.Max(from.y, to.y);
 
-                // Slightly inset to avoid overlapping node circles too much
                 float padding = 0.03f;
                 minY += padding;
                 maxY -= padding;
@@ -1911,8 +1980,8 @@ namespace Oxide.Plugins
                 }, treePanel);
             }
 
-            // Draw each node as a circular-ish panel with icon, name, ring, and upgrade button
-            float nodeSize = 0.18f;
+            // Draw nodes (more circular, no inline description)
+            float nodeSize = 0.20f;
             foreach (var kvp in nodePositions)
             {
                 var nodeId = kvp.Key;
@@ -1925,12 +1994,151 @@ namespace Oxide.Plugins
                 AddRageNodeCircle(player, data, treePanel, container, nodeId, cfg, pos.x, pos.y, nodeSize, flashThis);
             }
 
-            // Quick help text
+            // Selected-node detail (top-right)
+            string selectedId = data.Rage.SelectedNodeId;
+            RageNodeConfig selectedCfg = null;
+            int selectedLevel = 0;
+            if (!string.IsNullOrEmpty(selectedId))
+            {
+                config.Rage.Nodes.TryGetValue(selectedId, out selectedCfg);
+                selectedLevel = GetRageNodeLevel(data, selectedId);
+            }
+
+            string detailTitle = selectedCfg != null ? selectedCfg.DisplayName : "Select a Rage skill";
+            string detailBody;
+            if (selectedCfg == null)
+            {
+                detailBody = "Click the ? icon on any Rage node to view detailed info here.";
+            }
+            else
+            {
+                var lines = new List<string>
+                {
+                    $"Level: {selectedLevel}/{selectedCfg.MaxLevel}"
+                };
+
+                float totalDmg = selectedLevel * selectedCfg.DamageBonusPerLevel * 100f;
+                float totalCrit = selectedLevel * selectedCfg.CritChancePerLevel * 100f;
+                float totalCritDmg = selectedLevel * selectedCfg.CritDamagePerLevel * 100f;
+                float totalBleed = selectedLevel * selectedCfg.BleedChancePerLevel * 100f;
+                float totalMove = selectedLevel * selectedCfg.MoveSpeedPerLevel * 100f;
+                float totalRecoil = selectedLevel * selectedCfg.RecoilReductionPerLevel * 100f;
+
+                if (selectedCfg.DamageBonusPerLevel != 0)
+                    lines.Add($"Damage: +{totalDmg:0.#}% total ({selectedCfg.DamageBonusPerLevel * 100f:0.#}%/level)");
+                if (selectedCfg.CritChancePerLevel != 0)
+                    lines.Add($"Crit Chance: +{totalCrit:0.#}% total ({selectedCfg.CritChancePerLevel * 100f:0.#}%/level)");
+                if (selectedCfg.CritDamagePerLevel != 0)
+                    lines.Add($"Crit Damage: +{totalCritDmg:0.#}% total ({selectedCfg.CritDamagePerLevel * 100f:0.#}%/level)");
+                if (selectedCfg.BleedChancePerLevel != 0)
+                    lines.Add($"Bleed Chance: +{totalBleed:0.#}% total ({selectedCfg.BleedChancePerLevel * 100f:0.#}%/level)");
+                if (selectedCfg.MoveSpeedPerLevel != 0)
+                    lines.Add($"Move Speed: +{totalMove:0.#}% total ({selectedCfg.MoveSpeedPerLevel * 100f:0.#}%/level)");
+                if (selectedCfg.RecoilReductionPerLevel != 0)
+                    lines.Add($"Recoil: -{totalRecoil:0.#}% total ({selectedCfg.RecoilReductionPerLevel * 100f:0.#}%/level)");
+
+                if (lines.Count == 1)
+                    lines.Add("No numeric bonuses configured for this node yet.");
+
+                detailBody = string.Join("\n", lines);
+            }
+
             container.Add(new CuiLabel
             {
                 Text =
                 {
-                    Text = "Click nodes to spend Rage points. Recently upgraded nodes will briefly glow.",
+                    Text = detailTitle,
+                    FontSize = 15,
+                    Align = TextAnchor.MiddleLeft,
+                    Color = "1 0.9 0.7 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.05 0.70",
+                    AnchorMax = "0.95 0.96"
+                }
+            }, detailPanel);
+
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text = detailBody,
+                    FontSize = 12,
+                    Align = TextAnchor.UpperLeft,
+                    Color = "0.9 0.9 0.9 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.05 0.10",
+                    AnchorMax = "0.95 0.80"
+                }
+            }, detailPanel);
+
+            // Total combined buff summary (bottom-right)
+            float sumDmg = 0f, sumCrit = 0f, sumCritDmg = 0f, sumBleed = 0f, sumMove = 0f, sumRecoil = 0f;
+            foreach (var kvp in config.Rage.Nodes)
+            {
+                var nid = kvp.Key;
+                var cfg = kvp.Value;
+                int lvl = GetRageNodeLevel(data, nid);
+                if (lvl <= 0) continue;
+
+                sumDmg += lvl * cfg.DamageBonusPerLevel * 100f;
+                sumCrit += lvl * cfg.CritChancePerLevel * 100f;
+                sumCritDmg += lvl * cfg.CritDamagePerLevel * 100f;
+                sumBleed += lvl * cfg.BleedChancePerLevel * 100f;
+                sumMove += lvl * cfg.MoveSpeedPerLevel * 100f;
+                sumRecoil += lvl * cfg.RecoilReductionPerLevel * 100f;
+            }
+
+            var buffLines = new List<string>();
+            if (sumDmg != 0) buffLines.Add($"Damage: +{sumDmg:0.#}%");
+            if (sumCrit != 0) buffLines.Add($"Crit Chance: +{sumCrit:0.#}%");
+            if (sumCritDmg != 0) buffLines.Add($"Crit Damage: +{sumCritDmg:0.#}%");
+            if (sumBleed != 0) buffLines.Add($"Bleed Chance: +{sumBleed:0.#}%");
+            if (sumMove != 0) buffLines.Add($"Move Speed: +{sumMove:0.#}%");
+            if (sumRecoil != 0) buffLines.Add($"Recoil: -{sumRecoil:0.#}%");
+            if (buffLines.Count == 0) buffLines.Add("No Rage bonuses allocated yet.");
+
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text = "Total Rage Bonuses",
+                    FontSize = 14,
+                    Align = TextAnchor.MiddleLeft,
+                    Color = "1 0.9 0.7 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.05 0.74",
+                    AnchorMax = "0.95 0.96"
+                }
+            }, summaryBuffPanel);
+
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text = string.Join("\n", buffLines),
+                    FontSize = 12,
+                    Align = TextAnchor.UpperLeft,
+                    Color = "0.9 0.9 0.9 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.05 0.10",
+                    AnchorMax = "0.95 0.80"
+                }
+            }, summaryBuffPanel);
+
+            // Quick help text at bottom of main page
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text = "Click nodes to spend Rage points. Click the ? icon on a node to view detailed info on the right.",
                     FontSize = 12,
                     Align = TextAnchor.UpperLeft,
                     Color = "0.85 0.85 0.85 1"
@@ -1958,7 +2166,6 @@ namespace Oxide.Plugins
             int level = GetRageNodeLevel(data, nodeId);
             bool canUpgrade = data.Rage.UnspentPoints > 0 && level < cfg.MaxLevel;
 
-            // Base panel (node "circle")
             string nodePanel = parent + ".RageNode." + nodeId;
             string bgColor = flashHighlight ? "0.45 0.32 0.12 0.95" : "0.16 0.16 0.16 0.95";
             string ringColor = canUpgrade ? "0.95 0.78 0.36 1" : "0.40 0.40 0.40 1";
@@ -1969,6 +2176,7 @@ namespace Oxide.Plugins
             string maxX = (centerX + half).ToString(CultureInfo.InvariantCulture);
             string maxY = (centerY + half).ToString(CultureInfo.InvariantCulture);
 
+            // Base "circle" panel
             container.Add(new CuiPanel
             {
                 Image =
@@ -1982,7 +2190,7 @@ namespace Oxide.Plugins
                 }
             }, parent, nodePanel);
 
-            // Outer "ring"
+            // Outer ring
             container.Add(new CuiPanel
             {
                 Image =
@@ -1996,7 +2204,7 @@ namespace Oxide.Plugins
                 }
             }, nodePanel, nodePanel + ".Ring");
 
-            // Icon area (top portion)
+            // Icon / title area (top 40%)
             container.Add(new CuiPanel
             {
                 Image =
@@ -2005,12 +2213,11 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.12 0.45",
+                    AnchorMin = "0.12 0.50",
                     AnchorMax = "0.88 0.92"
                 }
             }, nodePanel, nodePanel + ".IconBg");
 
-            // Placeholder text for icon (later we can hook ImageLibrary here)
             container.Add(new CuiLabel
             {
                 Text =
@@ -2022,12 +2229,34 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.15 0.45",
-                    AnchorMax = "0.85 0.92"
+                    AnchorMin = "0.15 0.52",
+                    AnchorMax = "0.85 0.90"
                 }
             }, nodePanel);
 
-            // Level + max
+            // Small "?" help / inspect button in upper-right
+            container.Add(new CuiButton
+            {
+                Button =
+                {
+                    Color = "0.25 0.35 0.45 0.95",
+                    Command = $"omnirpg.rage.inspect {nodeId}"
+                },
+                Text =
+                {
+                    Text = "?",
+                    FontSize = 12,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = "1 1 1 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.78 0.72",
+                    AnchorMax = "0.93 0.92"
+                }
+            }, nodePanel);
+
+            // Level label just under icon area
             container.Add(new CuiLabel
             {
                 Text =
@@ -2039,12 +2268,12 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.12 0.30",
-                    AnchorMax = "0.88 0.45"
+                    AnchorMin = "0.12 0.38",
+                    AnchorMax = "0.88 0.50"
                 }
             }, nodePanel);
 
-            // Simple "rings" as a horizontal progress bar
+            // Centered progress bar (shrunken)
             float progress = cfg.MaxLevel > 0 ? Mathf.Clamp01(level / (float)cfg.MaxLevel) : 0f;
 
             container.Add(new CuiPanel
@@ -2055,8 +2284,8 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.12 0.22",
-                    AnchorMax = "0.88 0.28"
+                    AnchorMin = "0.18 0.30",
+                    AnchorMax = "0.82 0.36"
                 }
             }, nodePanel, nodePanel + ".ProgressBg");
 
@@ -2068,45 +2297,12 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.12 0.22",
-                    AnchorMax = $"{(0.12f + 0.76f * progress).ToString(CultureInfo.InvariantCulture)} 0.28"
+                    AnchorMin = "0.18 0.30",
+                    AnchorMax = $"{(0.18f + 0.64f * progress).ToString(CultureInfo.InvariantCulture)} 0.36"
                 }
             }, nodePanel, nodePanel + ".ProgressFill");
 
-            // Description under the node (tooltip-style text)
-            var descLines = new List<string>();
-            if (cfg.DamageBonusPerLevel != 0)
-                descLines.Add($"+{cfg.DamageBonusPerLevel * 100f:0.#}% damage / level");
-            if (cfg.CritChancePerLevel != 0)
-                descLines.Add($"+{cfg.CritChancePerLevel * 100f:0.#}% crit chance / level");
-            if (cfg.CritDamagePerLevel != 0)
-                descLines.Add($"+{cfg.CritDamagePerLevel * 100f:0.#}% crit damage / level");
-            if (cfg.BleedChancePerLevel != 0)
-                descLines.Add($"+{cfg.BleedChancePerLevel * 100f:0.#}% bleed chance / level");
-            if (cfg.MoveSpeedPerLevel != 0)
-                descLines.Add($"+{cfg.MoveSpeedPerLevel * 100f:0.#}% move speed / level");
-            if (cfg.RecoilReductionPerLevel != 0)
-                descLines.Add($"-{cfg.RecoilReductionPerLevel * 100f:0.#}% recoil / level");
-
-            string descText = descLines.Count == 0 ? "No bonuses configured yet." : string.Join("\n", descLines);
-
-            container.Add(new CuiLabel
-            {
-                Text =
-                {
-                    Text = descText,
-                    FontSize = 11,
-                    Align = TextAnchor.UpperLeft,
-                    Color = "0.9 0.9 0.9 1"
-                },
-                RectTransform =
-                {
-                    AnchorMin = "0.08 0.02",
-                    AnchorMax = "0.92 0.22"
-                }
-            }, nodePanel);
-
-            // Upgrade button
+            // Upgrade button below the bar
             bool isMax = level >= cfg.MaxLevel;
             string cmd = (canUpgrade && !isMax) ? $"omnirpg.rage.upgrade {nodeId}" : "";
             string btnColor = (canUpgrade && !isMax) ? "0.3 0.5 0.3 0.95" : "0.2 0.2 0.2 0.7";
@@ -2127,8 +2323,8 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.70 0.30",
-                    AnchorMax = "0.92 0.45"
+                    AnchorMin = "0.28 0.15",
+                    AnchorMax = "0.72 0.28"
                 }
             }, nodePanel);
         }
