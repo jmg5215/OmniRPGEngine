@@ -263,10 +263,16 @@ namespace Oxide.Plugins
             public float FuryAmount; // 0–1
             public double FuryExpireTimestamp;
 
+            // Visual feedback for the last-upgraded Rage node in the tree UI
+            public string LastUpgradedNodeId;
+            public double LastUpgradeFlashTime;
+
             public RageData()
             {
                 FuryAmount = 0f;
                 FuryExpireTimestamp = 0;
+                LastUpgradedNodeId = null;
+                LastUpgradeFlashTime = 0;
             }
         }
 
@@ -1005,6 +1011,10 @@ namespace Oxide.Plugins
 
             data.Rage.UnspentPoints -= spend;
             data.Rage.NodeLevels[nodeId] = current + spend;
+
+            // Record this node as the last-upgraded one for the tree UI flash highlight
+            data.Rage.LastUpgradedNodeId = nodeId;
+            data.Rage.LastUpgradeFlashTime = Time.realtimeSinceStartup;
 
             player.ChatMessage(
                 $"<color=#ffb74d>[OmniRPG]</color> Allocated <color=#e57373>{spend}</color> point(s) to " +
