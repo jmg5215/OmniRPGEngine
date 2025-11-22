@@ -1408,6 +1408,13 @@ namespace Oxide.Plugins
                             $"<color=#ffb74d>[OmniRPG]</color> Rage Enabled: <color=#e57373>{config.Rage.Enabled}</color>");
                         changed = true;
                     }
+                    else if (field.Equals("RespecEnabled", StringComparison.OrdinalIgnoreCase))
+                    {
+                        config.Rage.Respec.Enabled = !config.Rage.Respec.Enabled;
+                        player.ChatMessage(
+                            $"<color=#ffb74d>[OmniRPG]</color> Rage Respec Enabled: <color=#e57373>{config.Rage.Respec.Enabled}</color>");
+                        changed = true;
+                    }
                     break;
             }
 
@@ -1433,6 +1440,76 @@ namespace Oxide.Plugins
 
             SaveConfig();
             player.ChatMessage("<color=#ffb74d>[OmniRPG]</color> Config saved to disk.");
+
+            ShowMainUi(player, data, "admin");
+        }
+
+        // Admin: set string config values (e.g. Rage Respec Mode)
+        [ConsoleCommand("omnirpg.admin.mode")]
+        private void CCmdAdminMode(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null) return;
+            if (!HasPerm(player, PERM_ADMIN, false)) return;
+
+            var data = GetOrCreatePlayerData(player);
+            if (data == null) return;
+
+            var args = arg.Args;
+            if (args == null || args.Length < 3) return;
+
+            string category = args[0].ToLower();   // "rage"
+            string field = args[1];
+            string value = args[2];
+
+            bool changed = false;
+
+            if (category == "rage" && field.Equals("RespecMode", StringComparison.OrdinalIgnoreCase))
+            {
+                var r = config.Rage.Respec;
+                string v = value.ToLowerInvariant();
+
+                switch (v)
+                {
+                    case "none":
+                    case "free":
+                        r.Mode = "none";
+                        r.Enabled = false;
+                        break;
+
+                    case "economics":
+                        r.Mode = "economics";
+                        r.Enabled = true;
+                        break;
+
+                    case "serverrewards":
+                    case "rustrewards":
+                    case "rp":
+                        r.Mode = "serverrewards";
+                        r.Enabled = true;
+                        break;
+
+                    case "item":
+                        r.Mode = "item";
+                        r.Enabled = true;
+                        break;
+
+                    default:
+                        player.ChatMessage(
+                            $"<color=#ffb74d>[OmniRPG]</color> Unknown respec mode '{value}'. Use economics / rp / item / free.");
+                        return;
+                }
+
+                changed = true;
+                player.ChatMessage(
+                    $"<color=#ffb74d>[OmniRPG]</color> Rage Respec Mode: <color=#e57373>{r.Mode}</color> (Enabled: {r.Enabled})");
+            }
+
+            if (changed)
+            {
+                SaveConfig();
+                player.ChatMessage("<color=#ffb74d>[OmniRPG]</color> Config updated and saved.");
+            }
 
             ShowMainUi(player, data, "admin");
         }
@@ -1481,18 +1558,35 @@ namespace Oxide.Plugins
                 case "CorePointsPerLevel":
                     config.Rage.CorePointsPerLevel = Math.Max(0, config.Rage.CorePointsPerLevel + delta);
                     break;
+
                 case "FuryDurationSeconds":
                     config.Rage.FuryDurationSeconds = Mathf.Clamp(
                         config.Rage.FuryDurationSeconds + (float)delta, 1f, 120f);
                     break;
+
                 case "FuryMaxBonusDamage":
                     config.Rage.FuryMaxBonusDamage = Mathf.Clamp(
                         config.Rage.FuryMaxBonusDamage + (float)delta, 0f, 2f);
                     break;
+
                 case "FuryOnKillGain":
                     config.Rage.FuryOnKillGain = Mathf.Clamp(
                         config.Rage.FuryOnKillGain + (float)delta, 0f, 1f);
                     break;
+
+                // Respec costs (Rage.Respec.*)
+                case "RespecEconomicsCost":
+                    config.Rage.Respec.EconomicsCost = Math.Max(0, config.Rage.Respec.EconomicsCost + delta);
+                    break;
+
+                case "RespecServerRewardsCost":
+                    config.Rage.Respec.ServerRewardsCost = Math.Max(0, config.Rage.Respec.ServerRewardsCost + (int)delta);
+                    break;
+
+                case "RespecItemAmount":
+                    config.Rage.Respec.ItemAmount = Math.Max(0, config.Rage.Respec.ItemAmount + (int)delta);
+                    break;
+
                 default:
                     player.ChatMessage($"<color=#ffb74d>[OmniRPG]</color> Unknown Rage field '{field}'.");
                     return false;
@@ -3808,14 +3902,12 @@ namespace Oxide.Plugins
             AddRageRow("Fury Gain per Kill", "FuryOnKillGain", config.Rage.FuryOnKillGain, 0.01, 0.05);
 
             // Respec cost rows
-            void AddRespecRow(string label, string field, string displayValue, double stepSmall, double stepBig)
+            // --- Rage Respec Settings (UI-configurable) ---
             {
-                float yMax = rageRowTop;
-                float yMin = yMax - rowHeight;
-                rageRowTop -= rowHeight;
+                var r = config.Rage.Respec;
 
-                var rowName = ragePanel + ".Row." + field;
-
+                // Summary row for respec status
+                var respecRow = ragePanel + ".Row.RespecSummary";
                 container.Add(new CuiPanel
                 {
                     Image =
@@ -3824,38 +3916,40 @@ namespace Oxide.Plugins
                     },
                     RectTransform =
                     {
-                        AnchorMin = $"0.03 {yMin}",
-                        AnchorMax = $"0.97 {yMax}"
+                        AnchorMin = "0.03 0.12",
+                        AnchorMax = "0.97 0.22"
                     }
-                }, ragePanel, rowName);
+                }, ragePanel, respecRow);
+
+                string modeLabel = string.IsNullOrEmpty(r.Mode) ? "none" : r.Mode;
 
                 container.Add(new CuiLabel
                 {
                     Text =
                     {
-                        Text = $"{label}: {displayValue}",
+                        Text = $"Respec Enabled: {r.Enabled} | Mode: {modeLabel}",
                         FontSize = 12,
                         Align = TextAnchor.MiddleLeft,
                         Color = "1 1 1 1"
                     },
                     RectTransform =
                     {
-                        AnchorMin = "0.03 0.1",
-                        AnchorMax = "0.7 0.9"
+                        AnchorMin = "0.03 0.15",
+                        AnchorMax = "0.70 0.85"
                     }
-                }, rowName);
+                }, respecRow);
 
-                // -big
+                // Toggle Enabled
                 container.Add(new CuiButton
                 {
                     Button =
                     {
-                        Color = "0.4 0.2 0.2 0.95",
-                        Command = $"omnirpg.admin.adjust respec {field} {(-stepBig).ToString(CultureInfo.InvariantCulture)}"
+                        Color = "0.3 0.3 0.5 0.95",
+                        Command = "omnirpg.admin.toggle rage RespecEnabled"
                     },
                     Text =
                     {
-                        Text = $"-{stepBig}",
+                        Text = "Toggle",
                         FontSize = 11,
                         Align = TextAnchor.MiddleCenter,
                         Color = "1 1 1 1"
@@ -3863,80 +3957,100 @@ namespace Oxide.Plugins
                     RectTransform =
                     {
                         AnchorMin = "0.72 0.15",
-                        AnchorMax = "0.80 0.85"
+                        AnchorMax = "0.82 0.85"
                     }
-                }, rowName);
+                }, respecRow);
 
-                // -small
+                // Mode buttons: Free / Econ / RP / Item
                 container.Add(new CuiButton
                 {
                     Button =
                     {
-                        Color = "0.35 0.25 0.25 0.95",
-                        Command = $"omnirpg.admin.adjust respec {field} {(-stepSmall).ToString(CultureInfo.InvariantCulture)}"
+                        Color = "0.25 0.25 0.25 0.95",
+                        Command = "omnirpg.admin.mode rage RespecMode free"
                     },
                     Text =
                     {
-                        Text = $"-{stepSmall}",
+                        Text = "Free",
                         FontSize = 11,
                         Align = TextAnchor.MiddleCenter,
                         Color = "1 1 1 1"
                     },
                     RectTransform =
                     {
-                        AnchorMin = "0.81 0.15",
-                        AnchorMax = "0.87 0.85"
+                        AnchorMin = "0.03 0.01",
+                        AnchorMax = "0.18 0.13"
                     }
-                }, rowName);
+                }, ragePanel);
 
-                // +small
                 container.Add(new CuiButton
                 {
                     Button =
                     {
-                        Color = "0.25 0.35 0.25 0.95",
-                        Command = $"omnirpg.admin.adjust respec {field} {stepSmall.ToString(CultureInfo.InvariantCulture)}"
+                        Color = "0.25 0.35 0.45 0.95",
+                        Command = "omnirpg.admin.mode rage RespecMode economics"
                     },
                     Text =
                     {
-                        Text = $"+{stepSmall}",
+                        Text = "Economics",
                         FontSize = 11,
                         Align = TextAnchor.MiddleCenter,
                         Color = "1 1 1 1"
                     },
                     RectTransform =
                     {
-                        AnchorMin = "0.88 0.15",
-                        AnchorMax = "0.94 0.85"
+                        AnchorMin = "0.20 0.01",
+                        AnchorMax = "0.38 0.13"
                     }
-                }, rowName);
+                }, ragePanel);
 
-                // +big
                 container.Add(new CuiButton
                 {
                     Button =
                     {
-                        Color = "0.25 0.4 0.25 0.95",
-                        Command = $"omnirpg.admin.adjust respec {field} {stepBig.ToString(CultureInfo.InvariantCulture)}"
+                        Color = "0.30 0.35 0.30 0.95",
+                        Command = "omnirpg.admin.mode rage RespecMode rp"
                     },
                     Text =
                     {
-                        Text = $"+{stepBig}",
+                        Text = "RP (ServerRewards)",
                         FontSize = 11,
                         Align = TextAnchor.MiddleCenter,
                         Color = "1 1 1 1"
                     },
                     RectTransform =
                     {
-                        AnchorMin = "0.95 0.15",
-                        AnchorMax = "1.01 0.85"
+                        AnchorMin = "0.40 0.01",
+                        AnchorMax = "0.64 0.13"
                     }
-                }, rowName);
+                }, ragePanel);
+
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.35 0.30 0.25 0.95",
+                        Command = "omnirpg.admin.mode rage RespecMode item"
+                    },
+                    Text =
+                    {
+                        Text = "Item",
+                        FontSize = 11,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.66 0.01",
+                        AnchorMax = "0.94 0.13"
+                    }
+                }, ragePanel);
             }
 
-            AddRespecRow("Respec Econ Cost", "EconomicsCost", config.Rage.Respec.EconomicsCost.ToString("0.###"), 100, 500);
-            AddRespecRow("Respec RP Cost", "ServerRewardsCost", config.Rage.Respec.ServerRewardsCost.ToString(), 10, 50);
-            AddRespecRow("Respec Item Amount", "ItemAmount", config.Rage.Respec.ItemAmount.ToString(), 1, 5);
+            // Fine-tune Respec cost values using existing Rage row layout
+            AddRageRow("Respec Econ Cost", "RespecEconomicsCost", config.Rage.Respec.EconomicsCost, 100, 1000);
+            AddRageRow("Respec RP Cost", "RespecServerRewardsCost", config.Rage.Respec.ServerRewardsCost, 5, 25);
+            AddRageRow("Respec Item Amount", "RespecItemAmount", config.Rage.Respec.ItemAmount, 1, 10);
 
             // Button to open BotReSpawn XP settings page
             container.Add(new CuiButton
