@@ -741,6 +741,64 @@ namespace Oxide.Plugins
             return 0;
         }
 
+        private string GetRageNodeDescription(string nodeId)
+        {
+            switch (nodeId)
+            {
+                case "core":
+                    return "Core Rage: minor bonuses to all damage, recoil and movement speed.";
+                case "rifle":
+                    return "Rifle Mastery: increases damage and headshot potential with rifles.";
+                case "shotgun":
+                    return "Shotgun Savagery: boosts close-range damage and bleed effects.";
+                case "pistol":
+                    return "Pistol Precision: improves pistol damage and critical strike potential.";
+                default:
+                    return string.Empty;
+            }
+        }
+
+        // Uses ImageLibrary (if present) to fetch a sprite ID for Rage node icons.
+        // Configure images in ImageLibrary with these keys:
+        //   omnirpg_rage_core, omnirpg_rage_rifle, omnirpg_rage_shotgun, omnirpg_rage_pistol
+        private string GetRageNodeIconSprite(string nodeId)
+        {
+            if (ImageLibrary == null) return string.Empty;
+
+            string key = null;
+            switch (nodeId)
+            {
+                case "core":
+                    key = "omnirpg_rage_core";
+                    break;
+                case "rifle":
+                    key = "omnirpg_rage_rifle";
+                    break;
+                case "shotgun":
+                    key = "omnirpg_rage_shotgun";
+                    break;
+                case "pistol":
+                    key = "omnirpg_rage_pistol";
+                    break;
+            }
+
+            if (string.IsNullOrEmpty(key))
+                return string.Empty;
+
+            try
+            {
+                var result = ImageLibrary.Call("GetImage", key);
+                if (result is string s && !string.IsNullOrEmpty(s))
+                    return s;
+            }
+            catch
+            {
+                // ignore image errors
+            }
+
+            return string.Empty;
+        }
+
         private float GetRageDamageBonus(PlayerData data, Item weapon)
         {
             if (!config.Rage.Enabled) return 0f;
@@ -996,6 +1054,9 @@ namespace Oxide.Plugins
 
             // Spend 1 point per click from UI
             AllocateRagePoints(player, data, nodeId, 1);
+
+            // Small visual flash to acknowledge the upgrade
+            ShowRageUpgradeFlash(player);
 
             // Refresh Rage UI page
             ShowMainUi(player, data, "rage");
@@ -1369,6 +1430,8 @@ namespace Oxide.Plugins
                 }
             }, panel, UI_MAIN + ".Nav");
 
+            
+
             // Nav buttons
             float btnTop = 0.9f;
             float btnHeight = 0.07f;
@@ -1449,6 +1512,30 @@ namespace Oxide.Plugins
                     BuildProfilePage(player, data, contentPanel, container);
                     break;
             }
+
+            CuiHelper.AddUi(player, container);
+        }
+
+        private void ShowRageUpgradeFlash(BasePlayer player)
+        {
+            if (player == null) return;
+
+            // Subtle orange flash over the main OmniRPG UI
+            var container = new CuiElementContainer();
+
+            container.Add(new CuiPanel
+            {
+                Image =
+                {
+                    Color = "1 0.45 0.15 0.20"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0 0",
+                    AnchorMax = "1 1"
+                },
+                FadeOut = 0.15f
+            }, UI_MAIN);
 
             CuiHelper.AddUi(player, container);
         }
@@ -1689,6 +1776,7 @@ namespace Oxide.Plugins
         // Rage tree UI page
         private void BuildRagePage(BasePlayer player, PlayerData data, string parent, CuiElementContainer container)
         {
+            // Header
             container.Add(new CuiLabel
             {
                 Text =
@@ -1705,7 +1793,8 @@ namespace Oxide.Plugins
                 }
             }, parent);
 
-            // Top summary panel
+            // Summary strip at the top of the page
+            var summaryPanel = parent + ".RageSummary";
             container.Add(new CuiPanel
             {
                 Image =
@@ -1714,135 +1803,134 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.03 0.72",
-                    AnchorMax = "0.97 0.84"
+                    AnchorMin = "0.03 0.78",
+                    AnchorMax = "0.97 0.86"
                 }
-            }, parent, parent + ".RageSummary");
+            }, parent, summaryPanel);
+
+            var summaryLines = new List<string>
+            {
+                $"Level: {data.Level}",
+                $"Total XP: {data.TotalXp:0}",
+                $"Rage Points: {data.Rage.UnspentPoints}",
+                $"Fury: {data.Rage.FuryAmount * 100f:0}%"
+            };
 
             container.Add(new CuiLabel
             {
                 Text =
                 {
-                    Text =
-                        $"Unspent Rage points: {data.Rage.UnspentPoints}\n" +
-                        $"Fury: {data.Rage.FuryAmount * 100f:0}% (decays over time)\n" +
-                        $"Core points (per level): {config.Rage.CorePointsPerLevel:0}",
+                    Text = string.Join("   •   ", summaryLines),
                     FontSize = 13,
                     Align = TextAnchor.MiddleLeft,
                     Color = "1 1 1 1"
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.03 0.1",
-                    AnchorMax = "0.97 0.9"
+                    AnchorMin = "0.04 0.08",
+                    AnchorMax = "0.96 0.92"
                 }
-            }, parent + ".RageSummary");
+            }, summaryPanel);
 
-            // Node rows
-            var nodeOrder = new[] { "core", "rifle", "shotgun", "pistol" };
-            float startY = 0.68f;
-            float rowHeight = 0.14f;
-
-            foreach (var nodeId in nodeOrder)
+            // Main Rage tree canvas
+            var treePanel = parent + ".RageTreeArea";
+            container.Add(new CuiPanel
             {
-                RageNodeConfig cfg;
-                if (!config.Rage.Nodes.TryGetValue(nodeId, out cfg))
+                Image =
+                {
+                    Color = "0.05 0.05 0.05 0.9"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.03 0.10",
+                    AnchorMax = "0.97 0.78"
+                }
+            }, parent, treePanel);
+
+            // Compute flash info for last-upgraded node
+            string flashNode = data.Rage.LastUpgradedNodeId;
+            bool flashActive = false;
+            float flashWindow = 0.4f;
+            if (!string.IsNullOrEmpty(flashNode) && data.Rage.LastUpgradeFlashTime > 0)
+            {
+                var elapsed = Time.realtimeSinceStartup - (float)data.Rage.LastUpgradeFlashTime;
+                flashActive = elapsed >= 0 && elapsed <= flashWindow;
+            }
+
+            // Predefined positions for the Rage nodes (normalized coordinates in treePanel)
+            // Layout: core at top center, weapon nodes along the bottom row.
+            var nodePositions = new Dictionary<string, Vector2>
+            {
+                { "core",    new Vector2(0.50f, 0.70f) },
+                { "rifle",   new Vector2(0.25f, 0.30f) },
+                { "shotgun", new Vector2(0.50f, 0.30f) },
+                { "pistol",  new Vector2(0.75f, 0.30f) }
+            };
+
+            // Draw simple connection lines between core and each weapon node
+            foreach (var kvp in nodePositions)
+            {
+                var nodeId = kvp.Key;
+                if (nodeId == "core")
                     continue;
 
-                int lvl = GetRageNodeLevel(data, nodeId);
+                var from = nodePositions["core"];
+                var to = kvp.Value;
 
-                float yMax = startY;
-                float yMin = yMax - rowHeight;
-                startY -= rowHeight;
+                float minX = Math.Min(from.x, to.x);
+                float maxX = Math.Max(from.x, to.x);
+                float minY = Math.Min(from.y, to.y);
+                float maxY = Math.Max(from.y, to.y);
 
-                var rowName = parent + $".RageRow.{nodeId}";
+                // Slightly inset to avoid overlapping node circles too much
+                float padding = 0.03f;
+                minY += padding;
+                maxY -= padding;
 
                 container.Add(new CuiPanel
                 {
                     Image =
                     {
-                        Color = "0.07 0.07 0.07 0.9"
+                        Color = "0.4 0.35 0.2 0.7"
                     },
                     RectTransform =
                     {
-                        AnchorMin = $"0.03 {yMin}",
-                        AnchorMax = $"0.97 {yMax}"
+                        AnchorMin = $"{minX.ToString(CultureInfo.InvariantCulture)} {minY.ToString(CultureInfo.InvariantCulture)}",
+                        AnchorMax = $"{maxX.ToString(CultureInfo.InvariantCulture)} {maxY.ToString(CultureInfo.InvariantCulture)}"
                     }
-                }, parent, rowName);
-
-                // Node name + level
-                container.Add(new CuiLabel
-                {
-                    Text =
-                    {
-                        Text = $"{cfg.DisplayName}  ({lvl}/{cfg.MaxLevel})",
-                        FontSize = 15,
-                        Align = TextAnchor.UpperLeft,
-                        Color = "1 0.9 0.6 1"
-                    },
-                    RectTransform =
-                    {
-                        AnchorMin = "0.03 0.45",
-                        AnchorMax = "0.5 0.95"
-                    }
-                }, rowName);
-
-                // Description summary
-                var descLines = new List<string>();
-                if (cfg.DamageBonusPerLevel != 0)
-                    descLines.Add($"+{cfg.DamageBonusPerLevel * 100f:0.#}% damage per level");
-                if (cfg.CritChancePerLevel != 0)
-                    descLines.Add($"+{cfg.CritChancePerLevel * 100f:0.#}% crit chance per level");
-                if (cfg.CritDamagePerLevel != 0)
-                    descLines.Add($"+{cfg.CritDamagePerLevel * 100f:0.#}% crit damage per level");
-                if (cfg.BleedChancePerLevel != 0)
-                    descLines.Add($"+{cfg.BleedChancePerLevel * 100f:0.#}% bleed chance per level");
-                if (cfg.MoveSpeedPerLevel != 0)
-                    descLines.Add($"+{cfg.MoveSpeedPerLevel * 100f:0.#}% move speed per level");
-                if (cfg.RecoilReductionPerLevel != 0)
-                    descLines.Add($"-{cfg.RecoilReductionPerLevel * 100f:0.#}% recoil per level");
-
-                if (descLines.Count == 0)
-                    descLines.Add("Passive bonuses");
-
-                container.Add(new CuiLabel
-                {
-                    Text =
-                    {
-                        Text = string.Join("\n", descLines),
-                        FontSize = 12,
-                        Align = TextAnchor.UpperLeft,
-                        Color = "0.9 0.9 0.9 1"
-                    },
-                    RectTransform =
-                    {
-                        AnchorMin = "0.03 0.05",
-                        AnchorMax = "0.7 0.6"
-                    }
-                }, rowName);
-
-                // Upgrade button
-                container.Add(new CuiButton
-                {
-                    Button =
-                    {
-                        Color = "0.3 0.5 0.3 0.95",
-                        Command = $"omnirpg.rage.upgrade {nodeId}"
-                    },
-                    Text =
-                    {
-                        Text = "Upgrade +1",
-                        FontSize = 13,
-                        Align = TextAnchor.MiddleCenter,
-                        Color = "1 1 1 1"
-                    },
-                    RectTransform =
-                    {
-                        AnchorMin = "0.75 0.2",
-                        AnchorMax = "0.95 0.8"
-                    }
-                }, rowName);
+                }, treePanel);
             }
+
+            // Draw each node as a circular-ish panel with icon, name, ring, and upgrade button
+            float nodeSize = 0.18f;
+            foreach (var kvp in nodePositions)
+            {
+                var nodeId = kvp.Key;
+                RageNodeConfig cfg;
+                if (!config.Rage.Nodes.TryGetValue(nodeId, out cfg))
+                    continue;
+
+                Vector2 pos = kvp.Value;
+                bool flashThis = flashActive && string.Equals(flashNode, nodeId, StringComparison.OrdinalIgnoreCase);
+                AddRageNodeCircle(player, data, treePanel, container, nodeId, cfg, pos.x, pos.y, nodeSize, flashThis);
+            }
+
+            // Quick help text
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text = "Click nodes to spend Rage points. Recently upgraded nodes will briefly glow.",
+                    FontSize = 12,
+                    Align = TextAnchor.UpperLeft,
+                    Color = "0.85 0.85 0.85 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.03 0.02",
+                    AnchorMax = "0.80 0.09"
+                }
+            }, parent);
         }
 
 // Bot XP page (per-profile multiplier + flat XP)
