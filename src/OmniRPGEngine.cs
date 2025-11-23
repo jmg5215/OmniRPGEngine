@@ -3038,8 +3038,8 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.30 0.16",
-                    AnchorMax = "0.70 0.28"
+                    AnchorMin = "0.85 0.02",
+                    AnchorMax = "0.95 0.08"
                 }
             }, nodePanel);
         }
