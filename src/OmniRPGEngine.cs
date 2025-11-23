@@ -2152,7 +2152,7 @@ namespace Oxide.Plugins
             // Lower left mid: Rage (ACTIVE -> opens Rage tree)
             AddDisciplineNode(container, diagram,
                 "Rage", "rage",
-                0.14f, 0.38f, nodeSize,
+                0.165f, 0.38f, nodeSize,
                 pageKey: "rage", enabled: true);
 
             // Lower right mid: Hardiness
