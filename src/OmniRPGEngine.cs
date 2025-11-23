@@ -2094,7 +2094,7 @@ namespace Oxide.Plugins
             {
                 Image =
                 {
-                    Color = "0 0 0 0" // fully transparent over the parchment
+                    Color = "0 0 0 0" // fully transparent
                 },
                 RectTransform =
                 {
@@ -2152,7 +2152,7 @@ namespace Oxide.Plugins
             // Lower left mid: Rage (ACTIVE -> opens Rage tree)
             AddDisciplineNode(container, diagram,
                 "Rage", "rage",
-                0.19f, 0.38f, nodeSize,
+                0.14f, 0.38f, nodeSize,
                 pageKey: "rage", enabled: true);
 
             // Lower right mid: Hardiness
