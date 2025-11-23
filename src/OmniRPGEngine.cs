@@ -1804,8 +1804,8 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = $"{config.UI.AnchorMinX} {config.UI.AnchorMinY}",
-                    AnchorMax = $"{config.UI.AnchorMaxX} {config.UI.AnchorMaxY}"
+                    AnchorMin = "0.15 0.10",
+                    AnchorMax = "0.85 0.90"
                 },
                 CursorEnabled = true
             }, "Overlay", UI_MAIN);
@@ -1820,7 +1820,7 @@ namespace Oxide.Plugins
                 RectTransform =
                 {
                     AnchorMin = "0 0",
-                    AnchorMax = "0.22 1"
+                    AnchorMax = "0.26 1"
                 }
             }, panel, UI_MAIN + ".Nav");
 
@@ -1864,7 +1864,7 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.22 0",
+                    AnchorMin = "0.26 0",
                     AnchorMax = "1 1"
                 }
             }, panel, UI_MAIN + ".Content");
