@@ -2133,7 +2133,7 @@ namespace Oxide.Plugins
             // Lower left mid: Rage (ACTIVE -> opens Rage tree)
             AddDisciplineNode(container, diagram,
                 "Rage", "rage",
-                rageX, rageY, nodeSize,
+                0.22f, 0.38f, nodeSize,
                 pageKey: "rage", enabled: true);
 
             // Lower right mid: Hardiness
@@ -2275,125 +2275,7 @@ namespace Oxide.Plugins
             }
         }
 
-        private void AddDisciplineCard(
-            CuiElementContainer container,
-            string parent,
-            string title,
-            string subtitle,
-            string pageKey,
-            string anchorMin,
-            string anchorMax,
-            bool enabled)
-        {
-            var panelName = parent + ".Disc." + title.Replace(" ", "");
-
-            string panelColor = enabled ? "0.13 0.13 0.13 0.95" : "0.07 0.07 0.07 0.9";
-            string borderColor = enabled ? "1 0.7 0.3 0.9" : "0.4 0.4 0.4 0.8";
-
-            // Background panel (acts as the “card” / image area)
-            container.Add(new CuiPanel
-            {
-                Image = { Color = panelColor },
-                RectTransform =
-                {
-                    AnchorMin = anchorMin,
-                    AnchorMax = anchorMax
-                },
-                CursorEnabled = enabled
-            }, parent, panelName);
-
-            // Subtle border effect
-            container.Add(new CuiPanel
-            {
-                Image = { Color = borderColor },
-                RectTransform =
-                {
-                    AnchorMin = "0.03 0.03",
-                    AnchorMax = "0.97 0.06"
-                }
-            }, panelName);
-
-            // Title
-            container.Add(new CuiLabel
-            {
-                Text =
-                {
-                    Text = title,
-                    FontSize = 14,
-                    Align = TextAnchor.UpperCenter,
-                    Color = "1 0.9 0.6 1"
-                },
-                RectTransform =
-                {
-                    AnchorMin = "0.05 0.60",
-                    AnchorMax = "0.95 0.95"
-                }
-            }, panelName);
-
-            // Subtitle
-            if (!string.IsNullOrEmpty(subtitle))
-            {
-                container.Add(new CuiLabel
-                {
-                    Text =
-                    {
-                        Text = subtitle,
-                        FontSize = 11,
-                        Align = TextAnchor.UpperCenter,
-                        Color = "0.9 0.9 0.9 1"
-                    },
-                    RectTransform =
-                    {
-                        AnchorMin = "0.06 0.15",
-                        AnchorMax = "0.94 0.60"
-                    }
-                }, panelName);
-            }
-
-            // Clickable overlay (if enabled)
-            if (enabled && !string.IsNullOrEmpty(pageKey))
-            {
-                container.Add(new CuiButton
-                {
-                    Button =
-                    {
-                        Color = "0 0 0 0",
-                        Command = $"omnirpg.ui {pageKey}"
-                    },
-                    Text =
-                    {
-                        Text = "",
-                        FontSize = 12,
-                        Align = TextAnchor.MiddleCenter,
-                        Color = "0 0 0 0"
-                    },
-                    RectTransform =
-                    {
-                        AnchorMin = "0 0",
-                        AnchorMax = "1 1"
-                    }
-                }, panelName);
-            }
-            else
-            {
-                // “Locked / Coming Soon” tag for non-enabled cards
-                container.Add(new CuiLabel
-                {
-                    Text =
-                    {
-                        Text = "COMING SOON",
-                        FontSize = 11,
-                        Align = TextAnchor.LowerCenter,
-                        Color = "0.9 0.7 0.3 1"
-                    },
-                    RectTransform =
-                    {
-                        AnchorMin = "0.1 0.02",
-                        AnchorMax = "0.9 0.20"
-                    }
-                }, panelName);
-            }
-        }
+        // (Removed legacy AddDisciplineCard backup method)
 
         private void BuildProfilePage(BasePlayer player, PlayerData data, string parent, CuiElementContainer container)
         {
