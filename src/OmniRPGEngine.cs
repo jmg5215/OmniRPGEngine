@@ -1804,8 +1804,8 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.15 0.10",
-                    AnchorMax = "0.85 0.90"
+                    AnchorMin = "0.10 0.10",
+                    AnchorMax = "0.90 0.90"
                 },
                 CursorEnabled = true
             }, "Overlay", UI_MAIN);
