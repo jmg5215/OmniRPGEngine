@@ -2071,22 +2071,7 @@ namespace Oxide.Plugins
                 }, parent, discPanel);
             }
 
-            // Optional top label "DISCIPLINES" to echo the art
-            container.Add(new CuiLabel
-            {
-                Text =
-                {
-                    Text = "DISCIPLINES",
-                    FontSize = 24,
-                    Align = TextAnchor.UpperCenter,
-                    Color = "0.18 0.12 0.07 1"
-                },
-                RectTransform =
-                {
-                    AnchorMin = "0.20 0.78",
-                    AnchorMax = "0.80 0.95"
-                }
-            }, discPanel);
+            // (Removed decorative top label to keep background art untouched)
 
             // Inner diagram area (where the nodes + lines live)
             var diagram = discPanel + ".Diagram";
@@ -2114,14 +2099,7 @@ namespace Oxide.Plugins
             float dexterityX = 0.28f, dexterityY = 0.16f;
             float determinationX = 0.72f, determinationY = 0.16f;
 
-            // Draw connecting lines (simple, thick panels) to mimic the chart
-            AddDisciplineLine(container, diagram, intelligenceX, intelligenceY, fortitudeX, fortitudeY);       // Intelligence -> Fortitude
-            AddDisciplineLine(container, diagram, intelligenceX, intelligenceY, perceptionX, perceptionY);     // Intelligence -> Perception
-            AddDisciplineLine(container, diagram, intelligenceX, intelligenceY, willpowerX, willpowerY);       // Intelligence -> Willpower
-            AddDisciplineLine(container, diagram, intelligenceX, intelligenceY, rageX, rageY);                 // Intelligence -> Rage
-            AddDisciplineLine(container, diagram, intelligenceX, intelligenceY, hardinessX, hardinessY);       // Intelligence -> Hardiness
-            AddDisciplineLine(container, diagram, intelligenceX, intelligenceY, dexterityX, dexterityY);       // Intelligence -> Dexterity
-            AddDisciplineLine(container, diagram, intelligenceX, intelligenceY, determinationX, determinationY);// Intelligence -> Determination
+            // (Removed line overlays so the artwork brushes remain untouched)
 
             float nodeSize = 0.16f;
 
