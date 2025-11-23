@@ -1732,6 +1732,7 @@ namespace Oxide.Plugins
         #region UI Main Shell & Navigation
 
         private const string UI_MAIN = "OmniRPG.UI.Main";
+        private const string IMAGE_DISCIPLINESBG = "omnirpg_disciplines_bg";
 
         [ConsoleCommand("omnirpg.ui")]
         private void CCmdOpenUi(ConsoleSystem.Arg arg)
@@ -2005,7 +2006,7 @@ namespace Oxide.Plugins
             {
                 try
                 {
-                    discPng = ImageLibrary.Call("GetImage", IMAGE_DISCIPLINES_BG) as string;
+                    discPng = ImageLibrary.Call("GetImage", IMAGE_DISCIPLINESBG) as string;
                 }
                 catch
                 {
