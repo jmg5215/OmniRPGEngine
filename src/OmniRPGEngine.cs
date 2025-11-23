@@ -2136,34 +2136,10 @@ namespace Oxide.Plugins
                 pageKey: null, enabled: false);
 
             // Lower left mid: Rage (ACTIVE -> opens Rage tree)
-            {
-                // Slightly wider to the left and taller than the default node
-                float minX = 0.135f; // extend ~3% more to the left
-                float maxX = 0.245f; // keep the right edge about the same
-                float minY = 0.28f;  // lower bottom a bit
-                float maxY = 0.50f;  // raise top to cover the full node
-
-                container.Add(new CuiButton
-                {
-                    Button =
-                    {
-                        Color = "0 0 0 0",
-                        Command = "omnirpg.ui rage"
-                    },
-                    Text =
-                    {
-                        Text = "",
-                        FontSize = 1,
-                        Align = TextAnchor.MiddleCenter,
-                        Color = "0 0 0 0"
-                    },
-                    RectTransform =
-                    {
-                        AnchorMin = $"{minX} {minY}",
-                        AnchorMax = $"{maxX} {maxY}"
-                    }
-                }, diagram);
-            }
+            AddDisciplineNode(container, diagram,
+                "Rage", "rage",
+                0.155f, 0.38f, nodeSize * 1.15f,
+                pageKey: "rage", enabled: true);
 
             // Lower right mid: Hardiness
             AddDisciplineNode(container, diagram,
@@ -3666,6 +3642,7 @@ namespace Oxide.Plugins
 
             float rowTop = 0.82f;
             float rowHeight = 0.10f;
+            float rageRowHeight = 0.06f;
 
             void AddXpRow(string label, string field, double value, double stepSmall, double stepBig)
             {
@@ -3885,13 +3862,13 @@ namespace Oxide.Plugins
                 }
             }, rowEnabled);
 
-            float rageRowTop = 0.66f;
+            float rageRowTop = 0.72f;
 
             void AddRageRow(string label, string field, double value, double stepSmall, double stepBig)
             {
                 float yMax = rageRowTop;
-                float yMin = yMax - rowHeight;
-                rageRowTop -= rowHeight;
+                float yMin = yMax - rageRowHeight;
+                rageRowTop -= rageRowHeight;
 
                 var rowName = ragePanel + ".Row." + field;
 
@@ -4033,8 +4010,8 @@ namespace Oxide.Plugins
                     },
                     RectTransform =
                     {
-                        AnchorMin = "0.03 0.12",
-                        AnchorMax = "0.97 0.22"
+                        AnchorMin = "0.03 0.20",
+                        AnchorMax = "0.97 0.30"
                     }
                 }, ragePanel, respecRow);
 
@@ -4169,27 +4146,7 @@ namespace Oxide.Plugins
             AddRageRow("Respec RP Cost", "RespecServerRewardsCost", config.Rage.Respec.ServerRewardsCost, 5, 25);
             AddRageRow("Respec Item Amount", "RespecItemAmount", config.Rage.Respec.ItemAmount, 1, 10);
 
-            // Button to open BotReSpawn XP settings page
-            container.Add(new CuiButton
-            {
-                Button =
-                {
-                    Color = "0.3 0.4 0.6 0.95",
-                    Command = "omnirpg.ui botxp"
-                },
-                Text =
-                {
-                    Text = "BotReSpawn XP Settings",
-                    FontSize = 13,
-                    Align = TextAnchor.MiddleCenter,
-                    Color = "1 1 1 1"
-                },
-                RectTransform =
-                {
-                    AnchorMin = "0.62 0.03",
-                    AnchorMax = "0.95 0.11"
-                }
-            }, parent);
+            // (BotReSpawn XP Settings button removed)
 
             // Bottom Save button
             container.Add(new CuiButton
