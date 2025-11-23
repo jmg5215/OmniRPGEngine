@@ -404,7 +404,7 @@ namespace Oxide.Plugins
             }
 
             // Replace this URL with the real direct PNG URL for your Disciplines image
-            string url = "https://github.com/jmg5215/OmniRPGEngine/blob/ec410ff42d50a31f3dae195165815ebbc39dd6fc/assets/ui_images/Disciplines/disciplines_bg.png";
+            string url = "https://raw.githubusercontent.com/jmg5215/OmniRPGEngine/main/assets/ui_images/Disciplines/disciplines_bg.png";
 
             ImageLibrary.Call("AddImage", url, IMAGE_DISCIPLINES_BG, 0UL);
             Puts($"[OmniRPG] Queued Disciplines background image: {url}");
