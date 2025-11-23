@@ -3416,8 +3416,8 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.40 0.05",
-                    AnchorMax = "0.60 0.12"
+                    AnchorMin = "0.40 0.01",
+                    AnchorMax = "0.60 0.06"
                 }
             }, parent);
 
@@ -3458,8 +3458,8 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.62 0.04",
-                    AnchorMax = "0.70 0.13"
+                    AnchorMin = "0.30 0.01",
+                    AnchorMax = "0.38 0.06"
                 }
             }, parent);
         }
@@ -4135,8 +4135,8 @@ namespace Oxide.Plugins
                     },
                     RectTransform =
                     {
-                        AnchorMin = "0.66 0.01",
-                        AnchorMax = "0.94 0.13"
+                        AnchorMin = "0.62 0.01",
+                        AnchorMax = "0.70 0.06"
                     }
                 }, ragePanel);
             }
