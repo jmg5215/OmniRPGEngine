@@ -1973,27 +1973,7 @@ namespace Oxide.Plugins
                 }
             }, parent);
 
-            // Back to Disciplines hub
-            container.Add(new CuiButton
-            {
-                Button =
-                {
-                    Color = "0.2 0.2 0.2 0.95",
-                    Command = "omnirpg.ui disciplines"
-                },
-                Text =
-                {
-                    Text = "Back to Disciplines",
-                    FontSize = 12,
-                    Align = TextAnchor.MiddleCenter,
-                    Color = "1 1 1 1"
-                },
-                RectTransform =
-                {
-                    AnchorMin = "0.70 0.86",
-                    AnchorMax = "0.97 0.94"
-                }
-            }, parent);
+            // (Removed shared 'Back to Disciplines' button)
         }
 
         #endregion
@@ -2019,96 +1999,243 @@ namespace Oxide.Plugins
                 }
             }, parent);
 
-            // Small blurb under the header
-            var introPanel = parent + ".DiscIntro";
+            // Parchment-style backdrop panel for the diagram
+            var discPanel = parent + ".DisciplinesBackdrop";
             container.Add(new CuiPanel
             {
-                Image = { Color = "0.08 0.08 0.08 0.9" },
+                Image =
+                {
+                    // Slightly warm tone to roughly match the provided image
+                    Color = "0.82 0.74 0.60 0.95"
+                },
                 RectTransform =
                 {
-                    AnchorMin = "0.03 0.78",
+                    AnchorMin = "0.03 0.08",
                     AnchorMax = "0.97 0.86"
                 }
-            }, parent, introPanel);
+            }, parent, discPanel);
 
+            // Optional top label "DISCIPLINES" to echo the art
             container.Add(new CuiLabel
             {
                 Text =
                 {
-                    Text = "Choose a discipline to view and upgrade its skill tree. Rage is currently available; others are coming soon.",
-                    FontSize = 12,
-                    Align = TextAnchor.MiddleLeft,
-                    Color = "1 1 1 1"
+                    Text = "DISCIPLINES",
+                    FontSize = 24,
+                    Align = TextAnchor.UpperCenter,
+                    Color = "0.18 0.12 0.07 1"
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.03 0.1",
-                    AnchorMax = "0.97 0.9"
+                    AnchorMin = "0.20 0.78",
+                    AnchorMax = "0.80 0.95"
                 }
-            }, introPanel);
+            }, discPanel);
 
-            // Main diamond area
-            var gridParent = parent + ".DiscGrid";
+            // Inner diagram area (where the nodes + lines live)
+            var diagram = discPanel + ".Diagram";
             container.Add(new CuiPanel
             {
-                Image = { Color = "0.05 0.05 0.05 0.9" },
+                Image =
+                {
+                    Color = "0 0 0 0" // fully transparent over the parchment
+                },
                 RectTransform =
                 {
-                    AnchorMin = "0.03 0.10",
-                    AnchorMax = "0.97 0.78"
+                    AnchorMin = "0.06 0.08",
+                    AnchorMax = "0.94 0.80"
                 }
-            }, parent, gridParent);
+            }, discPanel, diagram);
 
-            // Diamond-ish layout (normalized anchors within gridParent)
-            // We only wire Rage; others are placeholders for now.
+            // Normalized coordinates inside 'diagram' to approximate your image layout
+            // Center X is 0.5; Y goes from bottom (0) to top (1)
+            float fortitudeX = 0.50f, fortitudeY = 0.86f;
+            float perceptionX = 0.22f, perceptionY = 0.66f;
+            float willpowerX = 0.78f, willpowerY = 0.66f;
+            float intelligenceX = 0.50f, intelligenceY = 0.54f;
+            float rageX = 0.22f, rageY = 0.38f;
+            float hardinessX = 0.78f, hardinessY = 0.38f;
+            float dexterityX = 0.28f, dexterityY = 0.16f;
+            float determinationX = 0.72f, determinationY = 0.16f;
 
-            // Top – Fortitude
-            AddDisciplineCard(container, gridParent,
-                "Fortitude",
-                "Defensive resilience tree (coming soon).",
-                null,
-                "0.40 0.65", "0.60 0.90",
-                enabled: false);
+            // Draw connecting lines (simple, thick panels) to mimic the chart
+            AddDisciplineLine(container, diagram, intelligenceX, intelligenceY, fortitudeX, fortitudeY);       // Intelligence -> Fortitude
+            AddDisciplineLine(container, diagram, intelligenceX, intelligenceY, perceptionX, perceptionY);     // Intelligence -> Perception
+            AddDisciplineLine(container, diagram, intelligenceX, intelligenceY, willpowerX, willpowerY);       // Intelligence -> Willpower
+            AddDisciplineLine(container, diagram, intelligenceX, intelligenceY, rageX, rageY);                 // Intelligence -> Rage
+            AddDisciplineLine(container, diagram, intelligenceX, intelligenceY, hardinessX, hardinessY);       // Intelligence -> Hardiness
+            AddDisciplineLine(container, diagram, intelligenceX, intelligenceY, dexterityX, dexterityY);       // Intelligence -> Dexterity
+            AddDisciplineLine(container, diagram, intelligenceX, intelligenceY, determinationX, determinationY);// Intelligence -> Determination
 
-            // Middle left – Precision
-            AddDisciplineCard(container, gridParent,
-                "Precision",
-                "Crit / accuracy tree (coming soon).",
-                null,
-                "0.15 0.45", "0.35 0.80",
-                enabled: false);
+            float nodeSize = 0.16f;
 
-            // Center – Rage (current tree)
-            AddDisciplineCard(container, gridParent,
-                "Rage",
-                "High-risk, high-reward weapon specialization.",
-                "rage",
-                "0.375 0.40", "0.625 0.75",
-                enabled: true);
+            // Top: Fortitude
+            AddDisciplineNode(container, diagram,
+                "Fortitude", "fortitude",
+                fortitudeX, fortitudeY, nodeSize,
+                pageKey: null, enabled: false);
 
-            // Middle right – Survival
-            AddDisciplineCard(container, gridParent,
-                "Survival",
-                "Metabolism and sustain (coming soon).",
-                null,
-                "0.65 0.45", "0.85 0.80",
-                enabled: false);
+            // Mid left: Perception
+            AddDisciplineNode(container, diagram,
+                "Perception", "perception",
+                perceptionX, perceptionY, nodeSize,
+                pageKey: null, enabled: false);
 
-            // Bottom – Tactics
-            AddDisciplineCard(container, gridParent,
-                "Tactics",
-                "Utility / mobility tree (coming soon).",
-                null,
-                "0.40 0.15", "0.60 0.40",
-                enabled: false);
+            // Mid right: Willpower
+            AddDisciplineNode(container, diagram,
+                "Willpower", "willpower",
+                willpowerX, willpowerY, nodeSize,
+                pageKey: null, enabled: false);
 
-            // Extra slot – Mystic (or future discipline)
-            AddDisciplineCard(container, gridParent,
-                "Mystic",
-                "Experimental effects (coming soon).",
-                null,
-                "0.15 0.15", "0.35 0.40",
-                enabled: false);
+            // Center: Intelligence
+            AddDisciplineNode(container, diagram,
+                "Intelligence", "intelligence",
+                intelligenceX, intelligenceY, nodeSize,
+                pageKey: null, enabled: false);
+
+            // Lower left mid: Rage (ACTIVE -> opens Rage tree)
+            AddDisciplineNode(container, diagram,
+                "Rage", "rage",
+                rageX, rageY, nodeSize,
+                pageKey: "rage", enabled: true);
+
+            // Lower right mid: Hardiness
+            AddDisciplineNode(container, diagram,
+                "Hardiness", "hardiness",
+                hardinessX, hardinessY, nodeSize,
+                pageKey: null, enabled: false);
+
+            // Bottom left: Dexterity
+            AddDisciplineNode(container, diagram,
+                "Dexterity", "dexterity",
+                dexterityX, dexterityY, nodeSize,
+                pageKey: null, enabled: false);
+
+            // Bottom right: Determination
+            AddDisciplineNode(container, diagram,
+                "Determination", "determination",
+                determinationX, determinationY, nodeSize,
+                pageKey: null, enabled: false);
+        }
+
+        private void AddDisciplineLine(
+            CuiElementContainer container,
+            string parent,
+            float x1, float y1,
+            float x2, float y2)
+        {
+            // Simple straight connection bar between two points
+            float minX = Mathf.Min(x1, x2);
+            float maxX = Mathf.Max(x1, x2);
+            float minY = Mathf.Min(y1, y2);
+            float maxY = Mathf.Max(y1, y2);
+
+            // Slight thickness
+            float thickness = 0.01f;
+
+            container.Add(new CuiPanel
+            {
+                Image =
+                {
+                    Color = "0.20 0.12 0.07 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = $"{minX} {minY - thickness}",
+                    AnchorMax = $"{maxX} {maxY + thickness}"
+                }
+            }, parent);
+        }
+
+        private void AddDisciplineNode(
+            CuiElementContainer container,
+            string parent,
+            string label,
+            string id,
+            float centerX,
+            float centerY,
+            float size,
+            string pageKey,
+            bool enabled)
+        {
+            string nodeName = parent + ".Node." + id;
+            float half = size / 2f;
+
+            string minX = (centerX - half).ToString(CultureInfo.InvariantCulture);
+            string minY = (centerY - half).ToString(CultureInfo.InvariantCulture);
+            string maxX = (centerX + half).ToString(CultureInfo.InvariantCulture);
+            string maxY = (centerY + half).ToString(CultureInfo.InvariantCulture);
+
+            // Node circle background
+            container.Add(new CuiPanel
+            {
+                Image =
+                {
+                    Color = "0.93 0.60 0.35 1" // warm orange-red to echo icon color
+                },
+                RectTransform =
+                {
+                    AnchorMin = $"{minX} {minY}",
+                    AnchorMax = $"{maxX} {maxY}"
+                }
+            }, parent, nodeName);
+
+            // Inner circle to fake a ring
+            container.Add(new CuiPanel
+            {
+                Image =
+                {
+                    Color = "0.96 0.86 0.68 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.10 0.10",
+                    AnchorMax = "0.90 0.90"
+                }
+            }, nodeName, nodeName + ".Inner");
+
+            // Label below the circle
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text = label.ToUpperInvariant(),
+                    FontSize = 12,
+                    Align = TextAnchor.UpperCenter,
+                    Color = "0.18 0.12 0.07 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = $"{(centerX - 0.10f).ToString(CultureInfo.InvariantCulture)} {(centerY - half - 0.06f).ToString(CultureInfo.InvariantCulture)}",
+                    AnchorMax = $"{(centerX + 0.10f).ToString(CultureInfo.InvariantCulture)} {(centerY - half - 0.01f).ToString(CultureInfo.InvariantCulture)}"
+                }
+            }, parent);
+
+            // Transparent click overlay: this is the "button" the user interacts with.
+            // For non-active disciplines, we leave it non-clickable.
+            if (!string.IsNullOrEmpty(pageKey) && enabled)
+            {
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0 0 0 0", // fully transparent
+                        Command = $"omnirpg.ui {pageKey}"
+                    },
+                    Text =
+                    {
+                        Text = "",
+                        FontSize = 12,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "0 0 0 0"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = $"{minX} {minY}",
+                        AnchorMax = $"{maxX} {maxY}"
+                    }
+                }, parent);
+            }
         }
 
         private void AddDisciplineCard(
