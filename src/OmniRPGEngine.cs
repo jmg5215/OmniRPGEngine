@@ -3438,8 +3438,8 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.05 0.02",
-                    AnchorMax = "0.13 0.08"
+                    AnchorMin = "0.10 0.02",
+                    AnchorMax = "0.22 0.08"
                 }
             }, parent);
 
@@ -3460,8 +3460,8 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.87 0.02",
-                    AnchorMax = "0.95 0.08"
+                    AnchorMin = "0.78 0.02",
+                    AnchorMax = "0.90 0.08"
                 }
             }, parent);
         }
@@ -4057,7 +4057,7 @@ namespace Oxide.Plugins
                     }
                 }, respecRow);
 
-                // Mode buttons: Free / Econ / RP / Item
+                // Mode: Free
                 container.Add(new CuiButton
                 {
                     Button =
@@ -4074,11 +4074,12 @@ namespace Oxide.Plugins
                     },
                     RectTransform =
                     {
-                        AnchorMin = "0.30 0.02",
-                        AnchorMax = "0.38 0.08"
+                        AnchorMin = "0.35 0.10",
+                        AnchorMax = "0.44 0.90"
                     }
                 }, respecRow);
 
+                // Mode: Economics
                 container.Add(new CuiButton
                 {
                     Button =
@@ -4095,11 +4096,12 @@ namespace Oxide.Plugins
                     },
                     RectTransform =
                     {
-                        AnchorMin = "0.21 0.15",
-                        AnchorMax = "0.38 0.85"
+                        AnchorMin = "0.46 0.10",
+                        AnchorMax = "0.58 0.90"
                     }
                 }, respecRow);
 
+                // Mode: RP (ServerRewards)
                 container.Add(new CuiButton
                 {
                     Button =
@@ -4116,11 +4118,12 @@ namespace Oxide.Plugins
                     },
                     RectTransform =
                     {
-                        AnchorMin = "0.41 0.15",
-                        AnchorMax = "0.72 0.85"
+                        AnchorMin = "0.60 0.10",
+                        AnchorMax = "0.80 0.90"
                     }
                 }, respecRow);
 
+                // Mode: Item
                 container.Add(new CuiButton
                 {
                     Button =
@@ -4137,8 +4140,8 @@ namespace Oxide.Plugins
                     },
                     RectTransform =
                     {
-                        AnchorMin = "0.75 0.15",
-                        AnchorMax = "0.92 0.85"
+                        AnchorMin = "0.82 0.10",
+                        AnchorMax = "0.94 0.90"
                     }
                 }, respecRow);
             }
