@@ -2136,10 +2136,34 @@ namespace Oxide.Plugins
                 pageKey: null, enabled: false);
 
             // Lower left mid: Rage (ACTIVE -> opens Rage tree)
-            AddDisciplineNode(container, diagram,
-                "Rage", "rage",
-                0.165f, 0.38f, nodeSize,
-                pageKey: "rage", enabled: true);
+            {
+                // Slightly wider to the left and taller than the default node
+                float minX = 0.135f; // extend ~3% more to the left
+                float maxX = 0.245f; // keep the right edge about the same
+                float minY = 0.28f;  // lower bottom a bit
+                float maxY = 0.50f;  // raise top to cover the full node
+
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0 0 0 0",
+                        Command = "omnirpg.ui rage"
+                    },
+                    Text =
+                    {
+                        Text = "",
+                        FontSize = 1,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "0 0 0 0"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = $"{minX} {minY}",
+                        AnchorMax = $"{maxX} {maxY}"
+                    }
+                }, diagram);
+            }
 
             // Lower right mid: Hardiness
             AddDisciplineNode(container, diagram,
