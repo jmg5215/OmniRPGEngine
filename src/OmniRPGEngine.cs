@@ -1865,7 +1865,8 @@ namespace Oxide.Plugins
 
             if (permission.UserHasPermission(player.UserIDString, PERM_ADMIN))
             {
-                AddNavButton(container, navPanel, "Admin", "admin", page == "admin", btnTop);
+                AddNavButton(container, navPanel, "Admin", "adminmenu",
+                    page == "adminmenu" || page == "admin" || page == "botxp", btnTop);
                 btnTop -= btnHeight;
                 AddNavButton(container, navPanel, "Save Plugin", "save", page == "save", btnTop);
                 btnTop -= btnHeight;
@@ -3492,6 +3493,96 @@ namespace Oxide.Plugins
                     AnchorMax = "0.8 0.55"
                 }
             }, parent);
+        }
+
+        private void BuildAdminMenuPage(BasePlayer player, PlayerData data, string parent, CuiElementContainer container)
+        {
+            // Header
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text = "Admin Config Editor",
+                    FontSize = 18,
+                    Align = TextAnchor.MiddleLeft,
+                    Color = "1 0.9 0.6 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.03 0.86",
+                    AnchorMax = "0.9 0.97"
+                }
+            }, parent);
+
+            // Subheading / helper text
+            container.Add(new CuiLabel
+            {
+                Text =
+                {
+                    Text = "Choose a configuration section below:",
+                    FontSize = 13,
+                    Align = TextAnchor.MiddleLeft,
+                    Color = "1 1 1 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.03 0.78",
+                    AnchorMax = "0.9 0.86"
+                }
+            }, parent);
+
+            // Common button style helper
+            void AddAdminMenuButton(string label, string command, float minX, float minY, float maxX, float maxY)
+            {
+                var name = parent + ".AdminMenu." + label.Replace(" ", "");
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Color = "0.15 0.15 0.15 0.95",
+                        Command = command
+                    },
+                    Text =
+                    {
+                        Text = label,
+                        FontSize = 14,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 0.9 0.6 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = $"{minX} {minY}",
+                        AnchorMax = $"{maxX} {maxY}"
+                    }
+                }, parent, name);
+            }
+
+            // Row 1: XP / Rage and Bot XP
+            AddAdminMenuButton(
+                "XP & Rage Settings",
+                "omnirpg.ui admin",
+                0.05f, 0.52f,
+                0.48f, 0.72f);
+
+            AddAdminMenuButton(
+                "BotReSpawn XP Settings",
+                "omnirpg.ui botxp",
+                0.52f, 0.52f,
+                0.95f, 0.72f);
+
+            // Row 2: Save + future slots
+            AddAdminMenuButton(
+                "Save Config",
+                "omnirpg.admin.save",
+                0.05f, 0.28f,
+                0.48f, 0.48f);
+
+            // Optional placeholder for future sections (Economy, Loot, etc.)
+            AddAdminMenuButton(
+                "Future Section (placeholder)",
+                "echo",
+                0.52f, 0.28f,
+                0.95f, 0.48f);
         }
 
         private void BuildAdminPage(BasePlayer player, PlayerData data, string parent, CuiElementContainer container)
