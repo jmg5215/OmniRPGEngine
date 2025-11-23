@@ -1923,6 +1923,13 @@ namespace Oxide.Plugins
                     BuildSettingsPage(player, data, contentPanel, container);
                     break;
 
+                case "adminmenu":
+                    if (permission.UserHasPermission(player.UserIDString, PERM_ADMIN))
+                        BuildAdminMenuPage(player, data, contentPanel, container);
+                    else
+                        BuildAccessDeniedPage(player, contentPanel, container);
+                    break;
+
                 case "admin":
                     if (permission.UserHasPermission(player.UserIDString, PERM_ADMIN))
                         BuildAdminPage(player, data, contentPanel, container);
@@ -3514,12 +3521,12 @@ namespace Oxide.Plugins
                 }
             }, parent);
 
-            // Subheading / helper text
+            // Subtitle
             container.Add(new CuiLabel
             {
                 Text =
                 {
-                    Text = "Choose a configuration section below:",
+                    Text = "Choose a configuration section:",
                     FontSize = 13,
                     Align = TextAnchor.MiddleLeft,
                     Color = "1 1 1 1"
@@ -3531,7 +3538,7 @@ namespace Oxide.Plugins
                 }
             }, parent);
 
-            // Common button style helper
+            // Helper for buttons
             void AddAdminMenuButton(string label, string command, float minX, float minY, float maxX, float maxY)
             {
                 var name = parent + ".AdminMenu." + label.Replace(" ", "");
@@ -3557,7 +3564,7 @@ namespace Oxide.Plugins
                 }, parent, name);
             }
 
-            // Row 1: XP / Rage and Bot XP
+            // Row 1: XP & Rage / Bot XP
             AddAdminMenuButton(
                 "XP & Rage Settings",
                 "omnirpg.ui admin",
@@ -3570,16 +3577,15 @@ namespace Oxide.Plugins
                 0.52f, 0.52f,
                 0.95f, 0.72f);
 
-            // Row 2: Save + future slots
+            // Row 2: Save + placeholder for future stuff
             AddAdminMenuButton(
                 "Save Config",
                 "omnirpg.admin.save",
                 0.05f, 0.28f,
                 0.48f, 0.48f);
 
-            // Optional placeholder for future sections (Economy, Loot, etc.)
             AddAdminMenuButton(
-                "Future Section (placeholder)",
+                "Future Section",
                 "echo",
                 0.52f, 0.28f,
                 0.95f, 0.48f);
