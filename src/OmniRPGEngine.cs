@@ -459,13 +459,12 @@ namespace Oxide.Plugins
 
             if (victimPlayer != null)
             {
-                if (victimPlayer.IsNpc)
+                if (victimPlayer == killer)
                 {
-                    // Vanilla NPCs implemented as NPCPlayers (e.g. scientists, tunnel dwellers, etc.)
-                    xp = config.XP.BaseKillNpc;
-                    killerData.NpcKills++;
+                    // Suicide or self-inflicted, no XP
+                    xp = 0;
                 }
-                else if (victimPlayer != killer)
+                else
                 {
                     // Real player kill
                     xp = config.XP.BaseKillPlayer;
@@ -1999,21 +1998,58 @@ namespace Oxide.Plugins
                 }
             }, parent);
 
-            // Parchment-style backdrop panel for the diagram
+            // Parchment-style backdrop panel for the diagram (raw image from ImageLibrary if available)
             var discPanel = parent + ".DisciplinesBackdrop";
-            container.Add(new CuiPanel
+            string discPng = null;
+            if (ImageLibrary != null)
             {
-                Image =
+                try
                 {
-                    // Slightly warm tone to roughly match the provided image
-                    Color = "0.82 0.74 0.60 0.95"
-                },
-                RectTransform =
-                {
-                    AnchorMin = "0.03 0.08",
-                    AnchorMax = "0.97 0.86"
+                    discPng = ImageLibrary.Call("GetImage", IMAGE_DISCIPLINES_BG) as string;
                 }
-            }, parent, discPanel);
+                catch
+                {
+                    discPng = null;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(discPng))
+            {
+                container.Add(new CuiElement
+                {
+                    Name = discPanel,
+                    Parent = parent,
+                    Components =
+                    {
+                        new CuiRawImageComponent
+                        {
+                            Png = discPng
+                        },
+                        new CuiRectTransformComponent
+                        {
+                            AnchorMin = "0.03 0.08",
+                            AnchorMax = "0.97 0.86"
+                        }
+                    }
+                });
+            }
+            else
+            {
+                // Fallback: simple colored panel so the UI remains readable without ImageLibrary
+                container.Add(new CuiPanel
+                {
+                    Image =
+                    {
+                        // Slightly warm tone to roughly match the provided image
+                        Color = "0.82 0.74 0.60 0.95"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.03 0.08",
+                        AnchorMax = "0.97 0.86"
+                    }
+                }, parent, discPanel);
+            }
 
             // Optional top label "DISCIPLINES" to echo the art
             container.Add(new CuiLabel
