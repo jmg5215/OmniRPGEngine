@@ -1,0 +1,79 @@
+📄 LICENSE
+
+All Rights Reserved – Proprietary Software License
+
+Copyright © 2025 Joseph Guild.
+All rights reserved.
+
+1. Ownership
+
+This software, including all source code, assets, configuration files, and documentation within this repository (collectively, the “Software”), is the exclusive property of Joe Guild (“the Author”).
+
+No transfer of ownership or intellectual property rights is granted by making this repository publicly visible.
+
+2. Restrictions
+
+Except where explicit written permission is granted by the Author, you may NOT:
+
+Copy the Software
+
+Modify or create derivative works
+
+Redistribute or publish the Software
+
+Sell, license, or sublicense the Software
+
+Incorporate any part of the Software into other plugins or projects
+
+Use the Software for commercial purposes
+
+Re-upload, re-sell, or share the Software on any marketplace or website
+
+Convert, decompile, reverse engineer, or disassemble any compiled form of the Software
+
+Any such actions constitute copyright infringement.
+
+3. Viewing Rights
+
+Public visibility of this repository grants viewing rights only.
+
+You may:
+
+Browse the code
+
+Clone or fork this repository for personal inspection only
+
+These actions do not grant permission to use, execute, modify, or distribute any part of the Software.
+
+All forks inherit the same restrictions outlined in this license.
+
+4. Commercial Plugins & Distribution
+
+The Software is intended for use as a commercial Rust plugin, whether now or in the future. Unauthorized use in any public or private Rust server environment is strictly prohibited.
+
+Distribution of compiled plugin files (.cs, .dll, etc.) without explicit written consent from the Author is prohibited.
+
+5. DMCA Enforcement
+
+Unauthorized usage, copying, distribution, or derivative works of the Software may result in:
+
+DMCA takedown requests
+
+Removal of infringing GitHub repositories
+
+Reporting to plugin marketplaces
+
+Legal action as appropriate
+
+GitHub’s Terms of Service and DMCA policies apply fully.
+
+6. No Warranty
+
+The Software is provided “as is,” without warranty of any kind, express or implied. The Author is not liable for any damages resulting from use or misuse of the Software.
+
+7. Contact
+
+For licensing inquiries, commercial usage permission, or custom licensing agreements, contact:
+
+Joseph Guild
+(jmg5215@outlook.com)
