@@ -2152,7 +2152,7 @@ namespace Oxide.Plugins
             // Lower left mid: Rage (ACTIVE -> opens Rage tree)
             AddDisciplineNode(container, diagram,
                 "Rage", "rage",
-                0.22f, 0.38f, nodeSize,
+                0.19f, 0.38f, nodeSize,
                 pageKey: "rage", enabled: true);
 
             // Lower right mid: Hardiness
@@ -2214,7 +2214,6 @@ namespace Oxide.Plugins
             string pageKey,
             bool enabled)
         {
-            string nodeName = parent + ".Node." + id;
             float half = size / 2f;
 
             string minX = (centerX - half).ToString(CultureInfo.InvariantCulture);
@@ -2222,66 +2221,20 @@ namespace Oxide.Plugins
             string maxX = (centerX + half).ToString(CultureInfo.InvariantCulture);
             string maxY = (centerY + half).ToString(CultureInfo.InvariantCulture);
 
-            // Node circle background
-            container.Add(new CuiPanel
-            {
-                Image =
-                {
-                    Color = "0.93 0.60 0.35 1" // warm orange-red to echo icon color
-                },
-                RectTransform =
-                {
-                    AnchorMin = $"{minX} {minY}",
-                    AnchorMax = $"{maxX} {maxY}"
-                }
-            }, parent, nodeName);
-
-            // Inner circle to fake a ring
-            container.Add(new CuiPanel
-            {
-                Image =
-                {
-                    Color = "0.96 0.86 0.68 1"
-                },
-                RectTransform =
-                {
-                    AnchorMin = "0.10 0.10",
-                    AnchorMax = "0.90 0.90"
-                }
-            }, nodeName, nodeName + ".Inner");
-
-            // Label below the circle
-            container.Add(new CuiLabel
-            {
-                Text =
-                {
-                    Text = label.ToUpperInvariant(),
-                    FontSize = 12,
-                    Align = TextAnchor.UpperCenter,
-                    Color = "0.18 0.12 0.07 1"
-                },
-                RectTransform =
-                {
-                    AnchorMin = $"{(centerX - 0.10f).ToString(CultureInfo.InvariantCulture)} {(centerY - half - 0.06f).ToString(CultureInfo.InvariantCulture)}",
-                    AnchorMax = $"{(centerX + 0.10f).ToString(CultureInfo.InvariantCulture)} {(centerY - half - 0.01f).ToString(CultureInfo.InvariantCulture)}"
-                }
-            }, parent);
-
-            // Transparent click overlay: this is the "button" the user interacts with.
-            // For non-active disciplines, we leave it non-clickable.
+            // ONLY add a transparent clickable button if enabled
             if (!string.IsNullOrEmpty(pageKey) && enabled)
             {
                 container.Add(new CuiButton
                 {
                     Button =
                     {
-                        Color = "0 0 0 0", // fully transparent
+                        Color = "0 0 0 0",
                         Command = $"omnirpg.ui {pageKey}"
                     },
                     Text =
                     {
                         Text = "",
-                        FontSize = 12,
+                        FontSize = 1,
                         Align = TextAnchor.MiddleCenter,
                         Color = "0 0 0 0"
                     },
