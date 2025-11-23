@@ -390,6 +390,29 @@ namespace Oxide.Plugins
             cmd.AddConsoleCommand("omnirpg.botxp.mult", this, "CCmdBotXpMult");
             cmd.AddConsoleCommand("omnirpg.botxp.flat", this, "CCmdBotXpFlat");
             cmd.AddConsoleCommand("omnirpg.botxp.page", this, "CCmdBotXpPage");
+            
+            // Register images after server starts
+            // (RegisterImages itself is invoked from OnServerInitialized)
+        }
+
+        private void RegisterImages()
+        {
+            if (ImageLibrary == null)
+            {
+                Puts("[OmniRPG] ImageLibrary is not loaded, cannot register images.");
+                return;
+            }
+
+            // Replace this URL with the real direct PNG URL for your Disciplines image
+            string url = "https://github.com/jmg5215/OmniRPGEngine/blob/ec410ff42d50a31f3dae195165815ebbc39dd6fc/assets/ui_images/Disciplines/disciplines_bg.png";
+
+            ImageLibrary.Call("AddImage", url, IMAGE_DISCIPLINES_BG, 0UL);
+            Puts($"[OmniRPG] Queued Disciplines background image: {url}");
+        }
+
+        private void OnServerInitialized()
+        {
+            RegisterImages();
         }
 
         private void OnServerSave()
@@ -1999,23 +2022,19 @@ namespace Oxide.Plugins
                 }
             }, parent);
 
-            // Parchment-style backdrop panel for the diagram (raw image from ImageLibrary if available)
             var discPanel = parent + ".DisciplinesBackdrop";
-            string discPng = null;
+
+            string bgPng = null;
             if (ImageLibrary != null)
             {
-                try
-                {
-                    discPng = ImageLibrary.Call("GetImage", IMAGE_DISCIPLINES_BG) as string;
-                }
-                catch
-                {
-                    discPng = null;
-                }
+                var result = ImageLibrary.Call("GetImage", IMAGE_DISCIPLINES_BG);
+                if (result is string s && !string.IsNullOrEmpty(s))
+                    bgPng = s;
             }
 
-            if (!string.IsNullOrEmpty(discPng))
+            if (!string.IsNullOrEmpty(bgPng))
             {
+                // Use the real background image
                 container.Add(new CuiElement
                 {
                     Name = discPanel,
@@ -2024,7 +2043,8 @@ namespace Oxide.Plugins
                     {
                         new CuiRawImageComponent
                         {
-                            Png = discPng
+                            Png = bgPng,
+                            Color = "1 1 1 1"
                         },
                         new CuiRectTransformComponent
                         {
@@ -2036,12 +2056,11 @@ namespace Oxide.Plugins
             }
             else
             {
-                // Fallback: simple colored panel so the UI remains readable without ImageLibrary
+                // Fallback: parchment-style panel if image isn't ready
                 container.Add(new CuiPanel
                 {
                     Image =
                     {
-                        // Slightly warm tone to roughly match the provided image
                         Color = "0.82 0.74 0.60 0.95"
                     },
                     RectTransform =
