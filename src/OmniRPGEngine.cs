@@ -3138,7 +3138,7 @@ namespace Oxide.Plugins
             }
 
             var profiles = dict.Keys.OrderBy(k => k).ToList();
-            const int pageSize = 10;
+            const int pageSize = 9;
             int pageIndex = GetBotXpPage(player);
             int maxPage = (profiles.Count - 1) / pageSize;
             if (pageIndex < 0) pageIndex = 0;
@@ -3416,8 +3416,8 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.40 0.01",
-                    AnchorMax = "0.60 0.06"
+                    AnchorMin = "0.40 0.02",
+                    AnchorMax = "0.60 0.08"
                 }
             }, parent);
 
@@ -4072,8 +4072,8 @@ namespace Oxide.Plugins
                     },
                     RectTransform =
                     {
-                        AnchorMin = "0.03 0.01",
-                        AnchorMax = "0.18 0.13"
+                        AnchorMin = "0.30 0.02",
+                        AnchorMax = "0.38 0.08"
                     }
                 }, ragePanel);
 
@@ -4093,8 +4093,8 @@ namespace Oxide.Plugins
                     },
                     RectTransform =
                     {
-                        AnchorMin = "0.20 0.01",
-                        AnchorMax = "0.38 0.13"
+                        AnchorMin = "0.62 0.02",
+                        AnchorMax = "0.70 0.08"
                     }
                 }, ragePanel);
 
