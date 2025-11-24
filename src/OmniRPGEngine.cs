@@ -4057,7 +4057,8 @@ namespace Oxide.Plugins
                     }
                 }, respecRow);
 
-                // Mode: Free
+                // Mode buttons: Free / Econ / RP / Item (below Rage panel)
+                // This row sits between the Rage panel (bottom at Y=0.15) and the Save button (0.03–0.11)
                 container.Add(new CuiButton
                 {
                     Button =
@@ -4074,12 +4075,11 @@ namespace Oxide.Plugins
                     },
                     RectTransform =
                     {
-                        AnchorMin = "0.35 0.10",
-                        AnchorMax = "0.44 0.90"
+                        AnchorMin = "0.52 0.12",
+                        AnchorMax = "0.60 0.15"
                     }
-                }, respecRow);
+                }, parent);
 
-                // Mode: Economics
                 container.Add(new CuiButton
                 {
                     Button =
@@ -4096,12 +4096,11 @@ namespace Oxide.Plugins
                     },
                     RectTransform =
                     {
-                        AnchorMin = "0.46 0.10",
-                        AnchorMax = "0.58 0.90"
+                        AnchorMin = "0.61 0.12",
+                        AnchorMax = "0.73 0.15"
                     }
-                }, respecRow);
+                }, parent);
 
-                // Mode: RP (ServerRewards)
                 container.Add(new CuiButton
                 {
                     Button =
@@ -4118,12 +4117,11 @@ namespace Oxide.Plugins
                     },
                     RectTransform =
                     {
-                        AnchorMin = "0.60 0.10",
-                        AnchorMax = "0.80 0.90"
+                        AnchorMin = "0.74 0.12",
+                        AnchorMax = "0.90 0.15"
                     }
-                }, respecRow);
+                }, parent);
 
-                // Mode: Item
                 container.Add(new CuiButton
                 {
                     Button =
@@ -4140,10 +4138,10 @@ namespace Oxide.Plugins
                     },
                     RectTransform =
                     {
-                        AnchorMin = "0.82 0.10",
-                        AnchorMax = "0.94 0.90"
+                        AnchorMin = "0.91 0.12",
+                        AnchorMax = "0.98 0.15"
                     }
-                }, respecRow);
+                }, parent);
             }
 
             // Fine-tune Respec cost values using existing Rage row layout
