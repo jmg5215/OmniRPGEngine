@@ -2032,15 +2032,15 @@ namespace Oxide.Plugins
             {
                 Text =
                 {
-                    Text = "Disciplines",
-                    FontSize = 18,
-                    Align = TextAnchor.MiddleLeft,
+                    Text = "DISCIPLINES",
+                    FontSize = 26,
+                    Align = TextAnchor.MiddleCenter,
                     Color = "1 0.9 0.6 1"
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.03 0.86",
-                    AnchorMax = "0.6 0.97"
+                    AnchorMin = "0 0.90",
+                    AnchorMax = "1 0.98"
                 }
             }, parent);
 
@@ -2070,8 +2070,8 @@ namespace Oxide.Plugins
                         },
                         new CuiRectTransformComponent
                         {
-                            AnchorMin = "0.03 0.08",
-                            AnchorMax = "0.97 0.86"
+                            AnchorMin = "0.02 0.02",
+                            AnchorMax = "0.98 0.90"
                         }
                     }
                 });
@@ -2087,8 +2087,8 @@ namespace Oxide.Plugins
                     },
                     RectTransform =
                     {
-                        AnchorMin = "0.03 0.08",
-                        AnchorMax = "0.97 0.86"
+                        AnchorMin = "0.02 0.02",
+                        AnchorMax = "0.98 0.90"
                     }
                 }, parent, discPanel);
             }
@@ -2105,8 +2105,8 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.06 0.08",
-                    AnchorMax = "0.94 0.80"
+                    AnchorMin = "0.02 0.02",
+                    AnchorMax = "0.98 0.90"
                 }
             }, discPanel, diagram);
 
