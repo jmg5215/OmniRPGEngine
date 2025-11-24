@@ -1843,7 +1843,7 @@ namespace Oxide.Plugins
                 RectTransform =
                 {
                     AnchorMin = "0 0",
-                    AnchorMax = "0.26 1"
+                    AnchorMax = "0.20 1"
                 }
             }, panel, UI_MAIN + ".Nav");
 
@@ -1888,7 +1888,7 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.26 0",
+                    AnchorMin = "0.20 0",
                     AnchorMax = "1 1"
                 }
             }, panel, UI_MAIN + ".Content");
@@ -2451,8 +2451,8 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.03 0.86",
-                    AnchorMax = "0.6 0.97"
+                    AnchorMin = "0.03 0.88",
+                    AnchorMax = "0.6 0.98"
                 }
             }, parent);
 
@@ -2466,8 +2466,8 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.03 0.78",
-                    AnchorMax = "0.97 0.86"
+                    AnchorMin = "0.03 0.80",
+                    AnchorMax = "0.97 0.88"
                 }
             }, parent, summaryPanel);
 
@@ -2505,8 +2505,8 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.03 0.10",
-                    AnchorMax = "0.70 0.78"
+                    AnchorMin = "0.03 0.12",
+                    AnchorMax = "0.70 0.80"
                 }
             }, parent, treePanel);
 
@@ -2540,8 +2540,8 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.71 0.10",
-                    AnchorMax = "0.97 0.78"
+                    AnchorMin = "0.71 0.12",
+                    AnchorMax = "0.97 0.80"
                 }
             }, parent, rightPanel);
 
