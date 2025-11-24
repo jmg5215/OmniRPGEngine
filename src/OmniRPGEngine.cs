@@ -1823,7 +1823,7 @@ namespace Oxide.Plugins
             {
                 Image =
                 {
-                    Color = "0.05 0.05 0.05 0.97"
+                    Color = "0 0 0 0.35"
                 },
                 RectTransform =
                 {
@@ -1832,6 +1832,20 @@ namespace Oxide.Plugins
                 },
                 CursorEnabled = true
             }, "Overlay", UI_MAIN);
+
+            // Thick black border around the entire UI
+            container.Add(new CuiPanel
+            {
+                Image =
+                {
+                    Color = "0 0 0 1"
+                },
+                RectTransform =
+                {
+                    AnchorMin = "0.02 0.02",
+                    AnchorMax = "0.98 0.98"
+                }
+            }, panel, UI_MAIN + ".OuterBorder");
 
             // Left nav panel
             var navPanel = container.Add(new CuiPanel
@@ -1884,7 +1898,7 @@ namespace Oxide.Plugins
             {
                 Image =
                 {
-                    Color = "0.02 0.02 0.02 0.8"
+                    Color = "0.02 0.02 0.02 0.55"
                 },
                 RectTransform =
                 {
