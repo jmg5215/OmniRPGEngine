@@ -1843,7 +1843,7 @@ namespace Oxide.Plugins
                 RectTransform =
                 {
                     AnchorMin = "0 0",
-                    AnchorMax = "0.20 1"
+                    AnchorMax = "0.17 1"
                 }
             }, panel, UI_MAIN + ".Nav");
 
@@ -1888,7 +1888,7 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.20 0",
+                    AnchorMin = "0.17 0",
                     AnchorMax = "1 1"
                 }
             }, panel, UI_MAIN + ".Content");
@@ -2505,30 +2505,12 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.03 0.12",
-                    AnchorMax = "0.70 0.80"
+                    AnchorMin = "0.03 0.08",
+                    AnchorMax = "0.70 0.82"
                 }
             }, parent, treePanel);
 
-            // Tier selector strip
-            var tierStrip = treePanel + ".TierStrip";
-            container.Add(new CuiPanel
-            {
-                Image = { Color = "0.08 0.08 0.08 0.9" },
-                RectTransform =
-                {
-                    AnchorMin = "0.03 0.82",
-                    AnchorMax = "0.97 0.96"
-                }
-            }, treePanel, tierStrip);
-
-            bool tier1Unlocked = true;
-            bool tier2Unlocked = data.Rage.MaxUnlockedTier >= 2;
-            bool tier3Unlocked = data.Rage.MaxUnlockedTier >= 3;
-
-            AddTierTab(container, tierStrip, "Tier 1", "rage", 0.03f, 0.31f, tier1Unlocked);
-            AddTierTab(container, tierStrip, "Tier 2", null,  0.35f, 0.63f, tier2Unlocked);
-            AddTierTab(container, tierStrip, "Tier 3", null,  0.67f, 0.95f, tier3Unlocked);
+            
 
             // Right: context + total buff summary
             var rightPanel = parent + ".RageRight";
@@ -2540,8 +2522,8 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.71 0.12",
-                    AnchorMax = "0.97 0.80"
+                    AnchorMin = "0.71 0.08",
+                    AnchorMax = "0.97 0.82"
                 }
             }, parent, rightPanel);
 
