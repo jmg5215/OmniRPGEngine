@@ -3053,11 +3053,15 @@ namespace Oxide.Plugins
                     Parent = nodePanel,
                     Components =
                     {
-                        new CuiRawImageComponent { Png = null, Sprite = "assets/content/textures/generic/fulltransparent.tga", Color = "1 1 1 1", Url = null, Material = null, ItemId = 0, SkinId = 0, ImageUrl = cfg.IconImage },
+                        new CuiRawImageComponent
+                        {
+                            Url = cfg.IconImage,
+                            Color = "1 1 1 1"
+                        },
                         new CuiRectTransformComponent
                         {
-                            AnchorMin = "0.10 0.10",
-                            AnchorMax = "0.90 0.90"
+                            AnchorMin = "0.10 0.20",
+                            AnchorMax = "0.90 0.92"
                         }
                     }
                 });
