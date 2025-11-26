@@ -3131,7 +3131,7 @@ namespace Oxide.Plugins
             {
                 Text =
                 {
-                    Text = $"Lv {level}/{cfg.MaxLevel}",
+                    Text = $"Lv {currentLevel}/{cfg.MaxLevel}",
                     FontSize = 12,
                     Align = TextAnchor.MiddleCenter,
                     Color = "0.95 0.95 0.95 1"
@@ -3144,7 +3144,7 @@ namespace Oxide.Plugins
             }, nodePanel);
 
             // Compact centered progress bar
-            float progress = cfg.MaxLevel > 0 ? Mathf.Clamp01(level / (float)cfg.MaxLevel) : 0f;
+            float progress = cfg.MaxLevel > 0 ? Mathf.Clamp01(currentLevel / (float)cfg.MaxLevel) : 0f;
 
             container.Add(new CuiPanel
             {
