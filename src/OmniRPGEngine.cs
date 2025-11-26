@@ -110,46 +110,115 @@ namespace Oxide.Plugins
             // Weapon specialization nodes – values here are per level
             public Dictionary<string, RageNodeConfig> Nodes = new Dictionary<string, RageNodeConfig>
             {
+                // Tier 1 (core + weapon masteries)
+                ["core_t1"] = new RageNodeConfig
                 {
-                    "core",
-                    new RageNodeConfig
-                    {
-                        DisplayName = "Rage",
-                        MaxLevel = 20,
-                        DamageBonusPerLevel = 0.01f,
-                        RecoilReductionPerLevel = 0.005f,
-                        MoveSpeedPerLevel = 0.0025f
-                    }
+                    DisplayName = "Rage Core",
+                    MaxLevel = 20,
+                    DamageBonusPerLevel = 0.01f,
+                    RecoilReductionPerLevel = 0.005f,
+                    MoveSpeedPerLevel = 0.0025f,
+                    Tier = 1,
+                    IconImage = RAGE_ICON_BASE + "core/T1_Rage_Core.png",
+                    ParentNodeId = null
                 },
+                ["rifle_t1"] = new RageNodeConfig
                 {
-                    "rifle",
-                    new RageNodeConfig
-                    {
-                        DisplayName = "Rifle Mastery",
-                        MaxLevel = 10,
-                        DamageBonusPerLevel = 0.02f,
-                        CritChancePerLevel = 0.01f
-                    }
+                    DisplayName = "Rifle Mastery",
+                    MaxLevel = 10,
+                    DamageBonusPerLevel = 0.02f,
+                    CritChancePerLevel = 0.01f,
+                    Tier = 1,
+                    IconImage = RAGE_ICON_BASE + "rifle/T1_Rage_Rifle.png",
+                    ParentNodeId = "core_t1"
                 },
+                ["shotgun_t1"] = new RageNodeConfig
                 {
-                    "shotgun",
-                    new RageNodeConfig
-                    {
-                        DisplayName = "Shotgun Savagery",
-                        MaxLevel = 10,
-                        DamageBonusPerLevel = 0.02f,
-                        BleedChancePerLevel = 0.015f
-                    }
+                    DisplayName = "Shotgun Savagery",
+                    MaxLevel = 10,
+                    DamageBonusPerLevel = 0.02f,
+                    BleedChancePerLevel = 0.015f,
+                    Tier = 1,
+                    IconImage = RAGE_ICON_BASE + "shotgun/T1_Rage_Shotgun.png",
+                    ParentNodeId = "core_t1"
                 },
+                ["pistol_t1"] = new RageNodeConfig
                 {
-                    "pistol",
-                    new RageNodeConfig
-                    {
-                        DisplayName = "Pistol Precision",
-                        MaxLevel = 10,
-                        DamageBonusPerLevel = 0.015f,
-                        CritDamagePerLevel = 0.015f
-                    }
+                    DisplayName = "Pistol Precision",
+                    MaxLevel = 10,
+                    DamageBonusPerLevel = 0.015f,
+                    CritDamagePerLevel = 0.015f,
+                    Tier = 1,
+                    IconImage = RAGE_ICON_BASE + "pistol/T1_Rage_Pistol.png",
+                    ParentNodeId = "core_t1"
+                },
+
+                // Tier 2 (branch outward)
+                ["core_t2_bloodlust"] = new RageNodeConfig
+                {
+                    DisplayName = "Bloodlust",
+                    MaxLevel = 5,
+                    Tier = 2,
+                    IconImage = RAGE_ICON_BASE + "core/T2_Rage_Core_Bloodlust.png",
+                    ParentNodeId = "core_t1"
+                },
+                ["rifle_t2_predators_focus"] = new RageNodeConfig
+                {
+                    DisplayName = "Predator's Focus",
+                    MaxLevel = 5,
+                    Tier = 2,
+                    IconImage = RAGE_ICON_BASE + "rifle/T2_Rage_Predators_Focus.png",
+                    ParentNodeId = "rifle_t1"
+                },
+                ["shotgun_t2_bonebreaker"] = new RageNodeConfig
+                {
+                    DisplayName = "Bonebreaker Load",
+                    MaxLevel = 5,
+                    Tier = 2,
+                    IconImage = RAGE_ICON_BASE + "shotgun/T2_Rage_Bonebreaker_Load.png",
+                    ParentNodeId = "shotgun_t1"
+                },
+                ["pistol_t2_quickkill_reflexes"] = new RageNodeConfig
+                {
+                    DisplayName = "Quickkill Reflexes",
+                    MaxLevel = 5,
+                    Tier = 2,
+                    IconImage = RAGE_ICON_BASE + "pistol/T2_Rage_Quickkill_Reflexes.png",
+                    ParentNodeId = "pistol_t1"
+                },
+
+                // Tier 3 (outer ring)
+                ["core_t3_berserker_instinct"] = new RageNodeConfig
+                {
+                    DisplayName = "Berserker Instinct",
+                    MaxLevel = 5,
+                    Tier = 3,
+                    IconImage = RAGE_ICON_BASE + "core/T3_Rage_Core_Berserker_Instinct.png",
+                    ParentNodeId = "core_t2_bloodlust"
+                },
+                ["rifle_t3_overcharge_rounds"] = new RageNodeConfig
+                {
+                    DisplayName = "Overcharge Rounds",
+                    MaxLevel = 5,
+                    Tier = 3,
+                    IconImage = RAGE_ICON_BASE + "rifle/T3_Rage_Overcharge_Rounds.png",
+                    ParentNodeId = "rifle_t2_predators_focus"
+                },
+                ["shotgun_t3_sawedoff_fury"] = new RageNodeConfig
+                {
+                    DisplayName = "Sawed-Off Fury",
+                    MaxLevel = 5,
+                    Tier = 3,
+                    IconImage = RAGE_ICON_BASE + "shotgun/T3_Rage_SawedOff_Fury.png",
+                    ParentNodeId = "shotgun_t2_bonebreaker"
+                },
+                ["pistol_t3_street_executioner"] = new RageNodeConfig
+                {
+                    DisplayName = "Street Executioner",
+                    MaxLevel = 5,
+                    Tier = 3,
+                    IconImage = RAGE_ICON_BASE + "pistol/T3_Rage_Street_Executioner.png",
+                    ParentNodeId = "pistol_t2_quickkill_reflexes"
                 }
             };
             
@@ -168,6 +237,10 @@ namespace Oxide.Plugins
             public float BleedChancePerLevel = 0f;
             public float MoveSpeedPerLevel = 0f;
             public float RecoilReductionPerLevel = 0f;
+
+            public int Tier = 1;                 // 1 = inner ring, 2 = mid ring, 3 = outer ring
+            public string IconImage = null;      // registered image name for the node icon
+            public string ParentNodeId = null;   // optional – who this node branches from
         }
 
         // NEW: RespecSettings definition
@@ -813,16 +886,22 @@ namespace Oxide.Plugins
         {
             switch (nodeId)
             {
-                case "core":
-                    return "Core Rage: minor bonuses to all damage, recoil and movement speed.";
-                case "rifle":
-                    return "Rifle Mastery: increases damage and headshot potential with rifles.";
-                case "shotgun":
-                    return "Shotgun Savagery: boosts close-range damage and bleed effects.";
-                case "pistol":
-                    return "Pistol Precision: improves pistol damage and critical strike potential.";
-                default:
-                    return string.Empty;
+                // Tier 1
+                case "core_t1": return "Rage Core: global bonuses to damage, recoil and movement.";
+                case "rifle_t1": return "Rifle Mastery: improves rifle handling and headshot potential.";
+                case "shotgun_t1": return "Shotgun Savagery: enhances close-range impact and bleed chance.";
+                case "pistol_t1": return "Pistol Precision: boosts precision and critical damage output.";
+                // Tier 2
+                case "core_t2_bloodlust": return "Bloodlust: feeds ferocity, paving the path to Berserker.";
+                case "rifle_t2_predators_focus": return "Predator's Focus: unwavering aim in sustained engagements.";
+                case "shotgun_t2_bonebreaker": return "Bonebreaker Load: pulverizes defenses at point blank.";
+                case "pistol_t2_quickkill_reflexes": return "Quickkill Reflexes: rapid target acquisition and execution.";
+                // Tier 3
+                case "core_t3_berserker_instinct": return "Berserker Instinct: primal, explosive combat intuition.";
+                case "rifle_t3_overcharge_rounds": return "Overcharge Rounds: destabilizing, amplified projectile impact.";
+                case "shotgun_t3_sawedoff_fury": return "Sawed-Off Fury: brutal, uncompromising close-range carnage.";
+                case "pistol_t3_street_executioner": return "Street Executioner: ruthless finishing efficiency.";
+                default: return string.Empty;
             }
         }
 
@@ -831,39 +910,23 @@ namespace Oxide.Plugins
         //   omnirpg_rage_core, omnirpg_rage_rifle, omnirpg_rage_shotgun, omnirpg_rage_pistol
         private string GetRageNodeIconSprite(string nodeId)
         {
+            // Legacy fallback only; primary icon is now RageNodeConfig.IconImage
             if (ImageLibrary == null) return string.Empty;
-
             string key = null;
             switch (nodeId)
             {
-                case "core":
-                    key = "omnirpg_rage_core";
-                    break;
-                case "rifle":
-                    key = "omnirpg_rage_rifle";
-                    break;
-                case "shotgun":
-                    key = "omnirpg_rage_shotgun";
-                    break;
-                case "pistol":
-                    key = "omnirpg_rage_pistol";
-                    break;
+                case "core_t1": key = "omnirpg_rage_core"; break;
+                case "rifle_t1": key = "omnirpg_rage_rifle"; break;
+                case "shotgun_t1": key = "omnirpg_rage_shotgun"; break;
+                case "pistol_t1": key = "omnirpg_rage_pistol"; break;
             }
-
-            if (string.IsNullOrEmpty(key))
-                return string.Empty;
-
+            if (string.IsNullOrEmpty(key)) return string.Empty;
             try
             {
                 var result = ImageLibrary.Call("GetImage", key);
-                if (result is string s && !string.IsNullOrEmpty(s))
-                    return s;
+                if (result is string s && !string.IsNullOrEmpty(s)) return s;
             }
-            catch
-            {
-                // ignore image errors
-            }
-
+            catch { }
             return string.Empty;
         }
 
@@ -874,10 +937,10 @@ namespace Oxide.Plugins
 
             float bonus = 0f;
 
-            var coreCfg = GetRageNodeConfig("core");
+            var coreCfg = GetRageNodeConfig("core_t1");
             if (coreCfg != null)
             {
-                var coreLvl = GetRageNodeLevel(data, "core");
+                var coreLvl = GetRageNodeLevel(data, "core_t1");
                 bonus += coreCfg.DamageBonusPerLevel * coreLvl;
             }
 
@@ -887,29 +950,29 @@ namespace Oxide.Plugins
 
                 if (shortname.Contains("rifle"))
                 {
-                    var cfg = GetRageNodeConfig("rifle");
+                    var cfg = GetRageNodeConfig("rifle_t1");
                     if (cfg != null)
                     {
-                        var lvl = GetRageNodeLevel(data, "rifle");
+                        var lvl = GetRageNodeLevel(data, "rifle_t1");
                         bonus += cfg.DamageBonusPerLevel * lvl;
                     }
                 }
                 else if (shortname.Contains("shotgun"))
                 {
-                    var cfg = GetRageNodeConfig("shotgun");
+                    var cfg = GetRageNodeConfig("shotgun_t1");
                     if (cfg != null)
                     {
-                        var lvl = GetRageNodeLevel(data, "shotgun");
+                        var lvl = GetRageNodeLevel(data, "shotgun_t1");
                         bonus += cfg.DamageBonusPerLevel * lvl;
                     }
                 }
                 else if (shortname.Contains("pistol") || shortname.Contains("revolver") ||
                          shortname.Contains("nailgun"))
                 {
-                    var cfg = GetRageNodeConfig("pistol");
+                    var cfg = GetRageNodeConfig("pistol_t1");
                     if (cfg != null)
                     {
-                        var lvl = GetRageNodeLevel(data, "pistol");
+                        var lvl = GetRageNodeLevel(data, "pistol_t1");
                         bonus += cfg.DamageBonusPerLevel * lvl;
                     }
                 }
@@ -1179,7 +1242,7 @@ namespace Oxide.Plugins
 
             // Tier unlock: core node is the Tier 1 "Super Skill".
             // When it reaches max level, unlock Tier 2.
-            if (nodeId.Equals("core", StringComparison.OrdinalIgnoreCase) &&
+            if (nodeId.Equals("core_t1", StringComparison.OrdinalIgnoreCase) &&
                 newLevel >= cfg.MaxLevel &&
                 data.Rage.MaxUnlockedTier < 2)
             {
@@ -1756,6 +1819,7 @@ namespace Oxide.Plugins
 
         private const string UI_MAIN = "OmniRPG.UI.Main";
         private const string IMAGE_DISCIPLINES_BG = "omnirpg_disciplines_bg";
+        private const string RAGE_ICON_BASE = "https://raw.githubusercontent.com/jmg5215/OmniRPGEngine/main/assets/ui_images/Disciplines/RageNodeIcons/";
 
         [ConsoleCommand("omnirpg.ui")]
         private void CCmdOpenUi(ConsoleSystem.Arg arg)
@@ -2630,50 +2694,30 @@ namespace Oxide.Plugins
                 flashActive = elapsed >= 0 && elapsed <= flashWindow;
             }
 
-            // Predefined positions for the Rage nodes (normalized coordinates in treePanel)
+            // Central-core layout: Tier-1 ring positions
+            // Multi-tier layout: approximate concentric vertical distribution
             var nodePositions = new Dictionary<string, Vector2>
             {
-                { "core",    new Vector2(0.50f, 0.70f) },
-                { "rifle",   new Vector2(0.25f, 0.30f) },
-                { "shotgun", new Vector2(0.50f, 0.30f) },
-                { "pistol",  new Vector2(0.75f, 0.30f) }
+                // Tier 1 (inner)
+                { "core_t1",    new Vector2(0.50f, 0.65f) },
+                { "rifle_t1",   new Vector2(0.30f, 0.50f) },
+                { "shotgun_t1", new Vector2(0.50f, 0.48f) },
+                { "pistol_t1",  new Vector2(0.70f, 0.50f) },
+
+                // Tier 2 (middle ring)
+                { "core_t2_bloodlust",          new Vector2(0.50f, 0.80f) },
+                { "rifle_t2_predators_focus",   new Vector2(0.22f, 0.56f) },
+                { "shotgun_t2_bonebreaker",     new Vector2(0.50f, 0.38f) },
+                { "pistol_t2_quickkill_reflexes", new Vector2(0.78f, 0.56f) },
+
+                // Tier 3 (outer ring)
+                { "core_t3_berserker_instinct",    new Vector2(0.50f, 0.90f) },
+                { "rifle_t3_overcharge_rounds",    new Vector2(0.15f, 0.62f) },
+                { "shotgun_t3_sawedoff_fury",      new Vector2(0.50f, 0.28f) },
+                { "pistol_t3_street_executioner",  new Vector2(0.85f, 0.62f) }
             };
 
-            // Draw simple connection lines between core and each weapon node
-            foreach (var kvp in nodePositions)
-            {
-                var nodeId = kvp.Key;
-                if (nodeId == "core")
-                    continue;
-
-                var from = nodePositions["core"];
-                var to = kvp.Value;
-
-                float minX = Math.Min(from.x, to.x);
-                float maxX = Math.Max(from.x, to.x);
-                float minY = Math.Min(from.y, to.y);
-                float maxY = Math.Max(from.y, to.y);
-
-                float padding = 0.03f;
-                minY += padding;
-                maxY -= padding;
-
-                container.Add(new CuiPanel
-                {
-                    Image =
-                    {
-                        Color = "0.4 0.35 0.2 0.7"
-                    },
-                    RectTransform =
-                    {
-                        AnchorMin = $"{minX.ToString(CultureInfo.InvariantCulture)} {minY.ToString(CultureInfo.InvariantCulture)}",
-                        AnchorMax = $"{maxX.ToString(CultureInfo.InvariantCulture)} {maxY.ToString(CultureInfo.InvariantCulture)}"
-                    }
-                }, treePanel);
-            }
-
-            // Draw nodes (more circular, no inline description)
-            float nodeSize = 0.16f;
+            // Draw connection lines from each node to its ParentNodeId
             foreach (var kvp in nodePositions)
             {
                 var nodeId = kvp.Key;
@@ -2681,9 +2725,49 @@ namespace Oxide.Plugins
                 if (!config.Rage.Nodes.TryGetValue(nodeId, out cfg))
                     continue;
 
-                Vector2 pos = kvp.Value;
-                bool flashThis = flashActive && string.Equals(flashNode, nodeId, StringComparison.OrdinalIgnoreCase);
-                AddRageNodeCircle(player, data, treePanel, container, nodeId, cfg, pos.x, pos.y, nodeSize, flashThis);
+                if (string.IsNullOrEmpty(cfg.ParentNodeId))
+                    continue; // core has no parent
+
+                Vector2 from;
+                if (!nodePositions.TryGetValue(cfg.ParentNodeId, out from))
+                    continue;
+
+                var to = kvp.Value;
+
+                float minX = Math.Min(from.x, to.x);
+                float maxX = Math.Max(from.x, to.x);
+                float minY = Math.Min(from.y, to.y);
+                float maxY = Math.Max(from.y, to.y);
+
+                var lineName = treePanel + $".Line.{cfg.ParentNodeId}.{nodeId}";
+                container.Add(new CuiPanel
+                {
+                    Image = { Color = "0.6 0.6 0.6 0.25" },
+                    RectTransform =
+                    {
+                        AnchorMin = $"{minX.ToString(CultureInfo.InvariantCulture)} {minY.ToString(CultureInfo.InvariantCulture)}",
+                        AnchorMax = $"{maxX.ToString(CultureInfo.InvariantCulture)} {maxY.ToString(CultureInfo.InvariantCulture)}"
+                    }
+                }, treePanel, lineName);
+            }
+
+            // Draw nodes with icon-driven circular layout
+            foreach (var kvp in nodePositions)
+            {
+                var nodeId = kvp.Key;
+                RageNodeConfig cfg;
+                if (!config.Rage.Nodes.TryGetValue(nodeId, out cfg))
+                    continue;
+
+                var pos = kvp.Value;
+
+                bool unlocked = data.Rage.MaxUnlockedTier >= cfg.Tier;
+                int currentLevel = GetRageNodeLevel(data, nodeId);
+                bool isSelected = string.Equals(data.Rage.SelectedNodeId, nodeId, StringComparison.OrdinalIgnoreCase);
+
+                AddRageNodeCircle(container, treePanel, nodeId, cfg, pos, currentLevel, unlocked, isSelected,
+                    flashNode: flashNode,
+                    flashActive: flashActive);
             }
 
             // Selected-node detail (top-right)
@@ -2928,100 +3012,115 @@ namespace Oxide.Plugins
         }
 
         private void AddRageNodeCircle(
-            BasePlayer player,
-            PlayerData data,
-            string parent,
             CuiElementContainer container,
+            string parent,
             string nodeId,
             RageNodeConfig cfg,
-            float centerX,
-            float centerY,
-            float size,
-            bool flashHighlight)
+            Vector2 center,
+            int currentLevel,
+            bool unlocked,
+            bool isSelected,
+            string flashNode,
+            bool flashActive)
         {
-            int level = GetRageNodeLevel(data, nodeId);
-            bool canIncrease = data.Rage.UnspentPoints > 0 && level < cfg.MaxLevel;
-
-            string nodePanel = parent + ".RageNode." + nodeId;
-            string bgColor = flashHighlight ? "0.45 0.32 0.12 0.95" : "0.16 0.16 0.16 0.95";
-            string ringColor = canIncrease ? "0.95 0.78 0.36 1" : "0.40 0.40 0.40 1";
-
+            float size = 0.10f; // diameter in normalized coordinates inside treePanel
             float half = size / 2f;
-            string minX = (centerX - half).ToString(CultureInfo.InvariantCulture);
-            string minY = (centerY - half).ToString(CultureInfo.InvariantCulture);
-            string maxX = (centerX + half).ToString(CultureInfo.InvariantCulture);
-            string maxY = (centerY + half).ToString(CultureInfo.InvariantCulture);
 
-            // Base "circle"
-            container.Add(new CuiPanel
-            {
-                Image = { Color = bgColor },
-                RectTransform =
-                {
-                    AnchorMin = $"{minX} {minY}",
-                    AnchorMax = $"{maxX} {maxY}"
-                }
-            }, parent, nodePanel);
+            string nodePanel = parent + ".Node." + nodeId;
 
             // Outer ring
             container.Add(new CuiPanel
             {
-                Image = { Color = ringColor },
+                Image =
+                {
+                    Color = (flashActive && nodeId == flashNode)
+                        ? "1 0.7 0.2 0.9"
+                        : (isSelected ? "0.8 0.8 0.8 0.9" : "0.2 0.2 0.2 0.9")
+                },
                 RectTransform =
                 {
-                    AnchorMin = "0.06 0.06",
-                    AnchorMax = "0.94 0.94"
+                    AnchorMin = $"{(center.x - half).ToString(CultureInfo.InvariantCulture)} {(center.y - half).ToString(CultureInfo.InvariantCulture)}",
+                    AnchorMax = $"{(center.x + half).ToString(CultureInfo.InvariantCulture)} {(center.y + half).ToString(CultureInfo.InvariantCulture)}"
                 }
-            }, nodePanel, nodePanel + ".Ring");
+            }, parent, nodePanel);
 
-            // Icon / title area (top ~40%)
+            // Icon image in the middle, if configured
+            if (!string.IsNullOrEmpty(cfg.IconImage))
+            {
+                container.Add(new CuiElement
+                {
+                    Name = nodePanel + ".Icon",
+                    Parent = nodePanel,
+                    Components =
+                    {
+                        new CuiRawImageComponent { Png = null, Sprite = "assets/content/textures/generic/fulltransparent.tga", Color = "1 1 1 1", Url = null, Material = null, ItemId = 0, SkinId = 0, ImageUrl = cfg.IconImage },
+                        new CuiRectTransformComponent
+                        {
+                            AnchorMin = "0.10 0.10",
+                            AnchorMax = "0.90 0.90"
+                        }
+                    }
+                });
+            }
+
+            // Level bar under the icon
+            float filled = cfg.MaxLevel > 0 ? (float)currentLevel / cfg.MaxLevel : 0f;
+            string barParent = nodePanel + ".LevelBar";
             container.Add(new CuiPanel
             {
-                Image = { Color = "0.05 0.05 0.05 0.95" },
+                Image = { Color = "0.05 0.05 0.05 0.9" },
                 RectTransform =
                 {
-                    AnchorMin = "0.14 0.52",
-                    AnchorMax = "0.86 0.90"
+                    AnchorMin = "0.10 0.05",
+                    AnchorMax = "0.90 0.16"
                 }
-            }, nodePanel, nodePanel + ".IconBg");
+            }, nodePanel, barParent);
 
+            container.Add(new CuiPanel
+            {
+                Image = { Color = unlocked ? "0.2 0.8 0.3 1" : "0.3 0.3 0.3 1" },
+                RectTransform =
+                {
+                    AnchorMin = "0.02 0.15",
+                    AnchorMax = $"{(0.02f + 0.96f * filled).ToString(CultureInfo.InvariantCulture)} 0.85"
+                }
+            }, barParent);
+
+            // Center label (display name or "Locked")
             container.Add(new CuiLabel
             {
                 Text =
                 {
-                    Text = cfg.DisplayName,
-                    FontSize = 13,
+                    Text = unlocked ? cfg.DisplayName : "Locked",
+                    FontSize = 11,
                     Align = TextAnchor.MiddleCenter,
-                    Color = "1 0.9 0.7 1"
+                    Color = unlocked ? "1 0.9 0.6 1" : "0.7 0.7 0.7 1"
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.16 0.54",
-                    AnchorMax = "0.84 0.88"
+                    AnchorMin = "0.05 0.40",
+                    AnchorMax = "0.95 0.85"
                 }
             }, nodePanel);
 
-            // "?" inspect button in upper-right
-            container.Add(new CuiButton
+            // Clickable button to allocate points / select node
+            if (unlocked)
             {
-                Button =
+                container.Add(new CuiButton
                 {
-                    Color = "0.25 0.35 0.45 0.95",
-                    Command = $"omnirpg.rage.inspect {nodeId}"
-                },
-                Text =
-                {
-                    Text = "?",
-                    FontSize = 12,
-                    Align = TextAnchor.MiddleCenter,
-                    Color = "1 1 1 1"
-                },
-                RectTransform =
-                {
-                    AnchorMin = "0.76 0.74",
-                    AnchorMax = "0.92 0.92"
-                }
-            }, nodePanel);
+                    Button =
+                    {
+                        Command = $"omnirpg.rage.inspect {nodeId}",
+                        Color = "0 0 0 0"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0 0",
+                        AnchorMax = "1 1"
+                    },
+                    Text = { Text = "", FontSize = 0 }
+                }, nodePanel);
+            }
 
             // Level label
             container.Add(new CuiLabel
