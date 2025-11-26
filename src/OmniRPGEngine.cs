@@ -2110,6 +2110,31 @@ namespace Oxide.Plugins
                 }
             }, discPanel, diagram);
 
+            // -- Transparent Discipline Buttons (full-size clickable areas)
+            // RAGE (already exists but replace if needed)
+            AddDisciplineHitbox(container, diagram, "rage", 0.14f, 0.32f, 0.30f, 0.49f);
+
+            // FORTITUDE (top center)
+            AddDisciplineHitbox(container, diagram, "fortitude", 0.41f, 0.69f, 0.59f, 0.87f);
+
+            // PERCEPTION (middle left)
+            AddDisciplineHitbox(container, diagram, "perception", 0.16f, 0.50f, 0.33f, 0.67f);
+
+            // WILLPOWER (middle right)
+            AddDisciplineHitbox(container, diagram, "willpower", 0.67f, 0.50f, 0.84f, 0.67f);
+
+            // INTELLIGENCE (center)
+            AddDisciplineHitbox(container, diagram, "intelligence", 0.41f, 0.50f, 0.59f, 0.67f);
+
+            // HARDINESS (lower right)
+            AddDisciplineHitbox(container, diagram, "hardiness", 0.67f, 0.32f, 0.84f, 0.48f);
+
+            // DEXTERITY (bottom left)
+            AddDisciplineHitbox(container, diagram, "dexterity", 0.26f, 0.12f, 0.43f, 0.29f);
+
+            // DETERMINATION (bottom right)
+            AddDisciplineHitbox(container, diagram, "determination", 0.57f, 0.12f, 0.74f, 0.29f);
+
             // Normalized coordinates inside 'diagram' to approximate your image layout
             // Center X is 0.5; Y goes from bottom (0) to top (1)
             float fortitudeX = 0.50f, fortitudeY = 0.86f;
@@ -2149,11 +2174,11 @@ namespace Oxide.Plugins
                 intelligenceX, intelligenceY, nodeSize,
                 pageKey: null, enabled: false);
 
-            // Lower left mid: Rage (ACTIVE -> opens Rage tree)
+            // Lower left mid: Rage (visual ref only; clickable hitbox added above)
             AddDisciplineNode(container, diagram,
                 "Rage", "rage",
                 0.155f, 0.38f, nodeSize * 1.15f,
-                pageKey: "rage", enabled: true);
+                pageKey: null, enabled: false);
 
             // Lower right mid: Hardiness
             AddDisciplineNode(container, diagram,
@@ -2245,6 +2270,30 @@ namespace Oxide.Plugins
                     }
                 }, parent);
             }
+        }
+
+        private void AddDisciplineHitbox(CuiElementContainer container, string parent, string command, float minX, float minY, float maxX, float maxY)
+        {
+            container.Add(new CuiButton
+            {
+                Button =
+                {
+                    Color = "0 0 0 0",
+                    Command = $"omnirpg.ui {command}"
+                },
+                Text =
+                {
+                    Text = "",
+                    FontSize = 1,
+                    Align = TextAnchor.MiddleCenter,
+                    Color = "0 0 0 0"
+                },
+                RectTransform =
+                {
+                    AnchorMin = $"{minX.ToString(CultureInfo.InvariantCulture)} {minY.ToString(CultureInfo.InvariantCulture)}",
+                    AnchorMax = $"{maxX.ToString(CultureInfo.InvariantCulture)} {maxY.ToString(CultureInfo.InvariantCulture)}"
+                }
+            }, parent);
         }
 
         // (Removed legacy AddDisciplineCard backup method)
