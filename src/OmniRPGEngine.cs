@@ -3069,6 +3069,7 @@ namespace Oxide.Plugins
 
             // Level bar under the icon
             float filled = cfg.MaxLevel > 0 ? (float)currentLevel / cfg.MaxLevel : 0f;
+            bool canIncrease = unlocked && currentLevel < cfg.MaxLevel;
             string barParent = nodePanel + ".LevelBar";
             container.Add(new CuiPanel
             {
