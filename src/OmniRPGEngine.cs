@@ -108,6 +108,9 @@ namespace Oxide.Plugins
             public float FuryOnKillGain = 0.15f;    // 15% fury per qualifying kill
 
             // Weapon specialization nodes – values here are per level
+            const string RageIconBase = "https://raw.githubusercontent.com/jmg5215/OmniRPGEngine/main/assets/ui_images/Disciplines/RageNodeIcons/";
+            const string RageTreeBase = RageIconBase + "tree/";
+
             public Dictionary<string, RageNodeConfig> Nodes = new Dictionary<string, RageNodeConfig>
             {
                 // Tier 1 (core + weapon masteries)
@@ -119,7 +122,8 @@ namespace Oxide.Plugins
                     RecoilReductionPerLevel = 0.005f,
                     MoveSpeedPerLevel = 0.0025f,
                     Tier = 1,
-                    IconImage = RAGE_ICON_BASE + "core/T1_Rage_Core.png",
+                    TreeIconImage = RageTreeBase + "Core_Skills.png",
+                    DetailIconImage = RageIconBase + "core/T1_Rage_Core.png",
                     ParentNodeId = null
                 },
                 ["rifle_t1"] = new RageNodeConfig
@@ -129,7 +133,8 @@ namespace Oxide.Plugins
                     DamageBonusPerLevel = 0.02f,
                     CritChancePerLevel = 0.01f,
                     Tier = 1,
-                    IconImage = RAGE_ICON_BASE + "rifle/T1_Rage_Rifle.png",
+                    TreeIconImage = RageTreeBase + "Branch_Skills.png",
+                    DetailIconImage = RageIconBase + "rifle/T1_Rage_Rifle.png",
                     ParentNodeId = "core_t1"
                 },
                 ["shotgun_t1"] = new RageNodeConfig
@@ -139,7 +144,8 @@ namespace Oxide.Plugins
                     DamageBonusPerLevel = 0.02f,
                     BleedChancePerLevel = 0.015f,
                     Tier = 1,
-                    IconImage = RAGE_ICON_BASE + "shotgun/T1_Rage_Shotgun.png",
+                    TreeIconImage = RageTreeBase + "Branch_Skills.png",
+                    DetailIconImage = RageIconBase + "shotgun/T1_Rage_Shotgun.png",
                     ParentNodeId = "core_t1"
                 },
                 ["pistol_t1"] = new RageNodeConfig
@@ -149,7 +155,8 @@ namespace Oxide.Plugins
                     DamageBonusPerLevel = 0.015f,
                     CritDamagePerLevel = 0.015f,
                     Tier = 1,
-                    IconImage = RAGE_ICON_BASE + "pistol/T1_Rage_Pistol.png",
+                    TreeIconImage = RageTreeBase + "Branch_Skills.png",
+                    DetailIconImage = RageIconBase + "pistol/T1_Rage_Pistol.png",
                     ParentNodeId = "core_t1"
                 },
 
@@ -159,7 +166,8 @@ namespace Oxide.Plugins
                     DisplayName = "Bloodlust",
                     MaxLevel = 5,
                     Tier = 2,
-                    IconImage = RAGE_ICON_BASE + "core/T2_Rage_Core_Bloodlust.png",
+                    TreeIconImage = RageTreeBase + "Core_Skills.png",
+                    DetailIconImage = RageIconBase + "core/T2_Rage_Core_Bloodlust.png",
                     ParentNodeId = "core_t1"
                 },
                 ["rifle_t2_predators_focus"] = new RageNodeConfig
@@ -167,7 +175,8 @@ namespace Oxide.Plugins
                     DisplayName = "Predator's Focus",
                     MaxLevel = 5,
                     Tier = 2,
-                    IconImage = RAGE_ICON_BASE + "rifle/T2_Rage_Predators_Focus.png",
+                    TreeIconImage = RageTreeBase + "Branch_Skills.png",
+                    DetailIconImage = RageIconBase + "rifle/T2_Rage_Predators_Focus.png",
                     ParentNodeId = "rifle_t1"
                 },
                 ["shotgun_t2_bonebreaker"] = new RageNodeConfig
@@ -175,7 +184,8 @@ namespace Oxide.Plugins
                     DisplayName = "Bonebreaker Load",
                     MaxLevel = 5,
                     Tier = 2,
-                    IconImage = RAGE_ICON_BASE + "shotgun/T2_Rage_Bonebreaker_Load.png",
+                    TreeIconImage = RageTreeBase + "Branch_Skills.png",
+                    DetailIconImage = RageIconBase + "shotgun/T2_Rage_Bonebreaker_Load.png",
                     ParentNodeId = "shotgun_t1"
                 },
                 ["pistol_t2_quickkill_reflexes"] = new RageNodeConfig
@@ -183,7 +193,8 @@ namespace Oxide.Plugins
                     DisplayName = "Quickkill Reflexes",
                     MaxLevel = 5,
                     Tier = 2,
-                    IconImage = RAGE_ICON_BASE + "pistol/T2_Rage_Quickkill_Reflexes.png",
+                    TreeIconImage = RageTreeBase + "Branch_Skills.png",
+                    DetailIconImage = RageIconBase + "pistol/T2_Rage_Quickkill_Reflexes.png",
                     ParentNodeId = "pistol_t1"
                 },
 
@@ -193,7 +204,8 @@ namespace Oxide.Plugins
                     DisplayName = "Berserker Instinct",
                     MaxLevel = 5,
                     Tier = 3,
-                    IconImage = RAGE_ICON_BASE + "core/T3_Rage_Core_Berserker_Instinct.png",
+                    TreeIconImage = RageTreeBase + "Core_Skills.png",
+                    DetailIconImage = RageIconBase + "core/T3_Rage_Core_Berserker_Instinct.png",
                     ParentNodeId = "core_t2_bloodlust"
                 },
                 ["rifle_t3_overcharge_rounds"] = new RageNodeConfig
@@ -201,7 +213,8 @@ namespace Oxide.Plugins
                     DisplayName = "Overcharge Rounds",
                     MaxLevel = 5,
                     Tier = 3,
-                    IconImage = RAGE_ICON_BASE + "rifle/T3_Rage_Overcharge_Rounds.png",
+                    TreeIconImage = RageTreeBase + "Branch_Skills.png",
+                    DetailIconImage = RageIconBase + "rifle/T3_Rage_Overcharge_Rounds.png",
                     ParentNodeId = "rifle_t2_predators_focus"
                 },
                 ["shotgun_t3_sawedoff_fury"] = new RageNodeConfig
@@ -209,7 +222,8 @@ namespace Oxide.Plugins
                     DisplayName = "Sawed-Off Fury",
                     MaxLevel = 5,
                     Tier = 3,
-                    IconImage = RAGE_ICON_BASE + "shotgun/T3_Rage_SawedOff_Fury.png",
+                    TreeIconImage = RageTreeBase + "Branch_Skills.png",
+                    DetailIconImage = RageIconBase + "shotgun/T3_Rage_SawedOff_Fury.png",
                     ParentNodeId = "shotgun_t2_bonebreaker"
                 },
                 ["pistol_t3_street_executioner"] = new RageNodeConfig
@@ -217,7 +231,8 @@ namespace Oxide.Plugins
                     DisplayName = "Street Executioner",
                     MaxLevel = 5,
                     Tier = 3,
-                    IconImage = RAGE_ICON_BASE + "pistol/T3_Rage_Street_Executioner.png",
+                    TreeIconImage = RageTreeBase + "Branch_Skills.png",
+                    DetailIconImage = RageIconBase + "pistol/T3_Rage_Street_Executioner.png",
                     ParentNodeId = "pistol_t2_quickkill_reflexes"
                 }
             };
@@ -239,7 +254,8 @@ namespace Oxide.Plugins
             public float RecoilReductionPerLevel = 0f;
 
             public int Tier = 1;                 // 1 = inner ring, 2 = mid ring, 3 = outer ring
-            public string IconImage = null;      // registered image name for the node icon
+            public string TreeIconImage = null;   // small icon used on the skill tree nodes
+            public string DetailIconImage = null; // large art shown on the right-hand description panel
             public string ParentNodeId = null;   // optional – who this node branches from
         }
 
@@ -910,7 +926,7 @@ namespace Oxide.Plugins
         //   omnirpg_rage_core, omnirpg_rage_rifle, omnirpg_rage_shotgun, omnirpg_rage_pistol
         private string GetRageNodeIconSprite(string nodeId)
         {
-            // Legacy fallback only; primary icon is now RageNodeConfig.IconImage
+            // Legacy fallback only; primary icon is now RageNodeConfig.TreeIconImage
             if (ImageLibrary == null) return string.Empty;
             string key = null;
             switch (nodeId)
@@ -2835,6 +2851,29 @@ namespace Oxide.Plugins
                 }
             }, detailPanel);
 
+            // Display detail icon if configured
+            if (selectedCfg != null && !string.IsNullOrEmpty(selectedCfg.DetailIconImage))
+            {
+                container.Add(new CuiElement
+                {
+                    Name = detailPanel + ".SelectedIcon",
+                    Parent = detailPanel,
+                    Components =
+                    {
+                        new CuiRawImageComponent
+                        {
+                            Url = selectedCfg.DetailIconImage,
+                            Color = "1 1 1 1"
+                        },
+                        new CuiRectTransformComponent
+                        {
+                            AnchorMin = "0.05 0.55",
+                            AnchorMax = "0.35 0.90"
+                        }
+                    }
+                });
+            }
+
             container.Add(new CuiLabel
             {
                 Text =
@@ -2850,6 +2889,36 @@ namespace Oxide.Plugins
                     AnchorMax = "0.95 0.80"
                 }
             }, detailPanel);
+
+            // Add "Upgrade Skill" button if node is selected and can be upgraded
+            bool canUpgrade = selectedCfg != null
+                && data.Rage.UnspentPoints > 0
+                && GetRageNodeLevel(data, selectedId) < selectedCfg.MaxLevel
+                && data.Rage.MaxUnlockedTier >= selectedCfg.Tier;
+
+            if (canUpgrade)
+            {
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Command = $"omnirpg.rage.upgrade {selectedId}",
+                        Color = "0.80 0.25 0.25 0.95"
+                    },
+                    Text =
+                    {
+                        Text = "Upgrade Skill",
+                        FontSize = 14,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "1 1 1 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.55 0.05",
+                        AnchorMax = "0.95 0.12"
+                    }
+                }, detailPanel);
+            }
 
             // Total combined buff summary (bottom-right)
             float sumDmg = 0f, sumCrit = 0f, sumCritDmg = 0f, sumBleed = 0f, sumMove = 0f, sumRecoil = 0f;
@@ -2925,66 +2994,6 @@ namespace Oxide.Plugins
                     AnchorMax = "0.80 0.09"
                 }
             }, parent);
-            // --- Rage Reset (Respec) button ---
-            {
-                // Optional: show current cost text based on config
-                string costText;
-                var r = config.Rage.Respec;
-                var mode = (r.Mode ?? string.Empty).ToLowerInvariant();
-
-                if (!r.Enabled || string.IsNullOrEmpty(mode) || mode == "none")
-                {
-                    costText = "Reset Tree (Free)";
-                }
-                else if (mode == "economics")
-                {
-                    costText = $"Reset Tree ({r.EconomicsCost:0} coins)";
-                }
-                else if (mode == "serverrewards" || mode == "rustrewards" || mode == "rp")
-                {
-                    costText = $"Reset Tree ({r.ServerRewardsCost} RP)";
-                }
-                else if (mode == "item")
-                {
-                    costText = $"Reset Tree ({r.ItemAmount} x {r.ItemShortname})";
-                }
-                else
-                {
-                    costText = "Reset Tree";
-                }
-
-                // Bottom-center panel
-                var resetPanel = container.Add(new CuiPanel
-                {
-                    Image = { Color = "0.1 0.1 0.1 0.85" },
-                    RectTransform =
-                    {
-                        AnchorMin = "0.35 0.02",
-                        AnchorMax = "0.65 0.08"
-                    },
-                    CursorEnabled = true
-                }, parent, "omnirpg.rage.reset.panel");
-
-                container.Add(new CuiButton
-                {
-                    Button =
-                    {
-                        Command = "omnirpg.rage.respec",
-                        Color = "0.8 0.3 0.3 1.0"
-                    },
-                    RectTransform =
-                    {
-                        AnchorMin = "0.02 0.1",
-                        AnchorMax = "0.98 0.9"
-                    },
-                    Text =
-                    {
-                        Text = costText,
-                        FontSize = 14,
-                        Align = TextAnchor.MiddleCenter
-                    }
-                }, resetPanel);
-            }
             // Admin-only: full Rage respec button
             if (permission.UserHasPermission(player.UserIDString, PERM_ADMIN))
             {
@@ -3045,7 +3054,7 @@ namespace Oxide.Plugins
             }, parent, nodePanel);
 
             // Icon image in the middle, if configured
-            if (!string.IsNullOrEmpty(cfg.IconImage))
+            if (!string.IsNullOrEmpty(cfg.TreeIconImage))
             {
                 container.Add(new CuiElement
                 {
@@ -3055,7 +3064,7 @@ namespace Oxide.Plugins
                     {
                         new CuiRawImageComponent
                         {
-                            Url = cfg.IconImage,
+                            Url = cfg.TreeIconImage,
                             Color = "1 1 1 1"
                         },
                         new CuiRectTransformComponent
@@ -3108,7 +3117,7 @@ namespace Oxide.Plugins
                 }
             }, nodePanel);
 
-            // Clickable button to allocate points / select node
+            // Clickable button to select node
             if (unlocked)
             {
                 container.Add(new CuiButton
