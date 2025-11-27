@@ -2763,6 +2763,14 @@ namespace Oxide.Plugins
                 if (!nodePositions.TryGetValue(cfg.ParentNodeId, out from))
                     continue;
 
+                RageNodeConfig parentCfg;
+                if (!config.Rage.Nodes.TryGetValue(cfg.ParentNodeId, out parentCfg))
+                    continue;
+
+                // Only draw lines when the child is a higher tier than the parent
+                if (cfg.Tier <= parentCfg.Tier)
+                    continue;
+
                 var to = kvp.Value;
 
                 float minX = Math.Min(from.x, to.x);
@@ -2773,7 +2781,7 @@ namespace Oxide.Plugins
                 var lineName = treePanel + $".Line.{cfg.ParentNodeId}.{nodeId}";
                 container.Add(new CuiPanel
                 {
-                    Image = { Color = "0.6 0.6 0.6 0.25" },
+                    Image = { Color = "0.8 0.1 0.1 0.9" },
                     RectTransform =
                     {
                         AnchorMin = $"{minX.ToString(CultureInfo.InvariantCulture)} {minY.ToString(CultureInfo.InvariantCulture)}",
@@ -2811,128 +2819,156 @@ namespace Oxide.Plugins
                 selectedLevel = GetRageNodeLevel(data, selectedId);
             }
 
-            string detailTitle = selectedCfg != null ? selectedCfg.DisplayName : "Select a Rage skill";
-            string detailBody;
-            if (selectedCfg == null)
+            // Check if selected node's tier is unlocked
+            bool unlockedTier = selectedCfg == null || data.Rage.MaxUnlockedTier >= selectedCfg.Tier;
+
+            if (selectedCfg != null && !unlockedTier)
             {
-                detailBody = "Click the ? icon on any Rage node to view detailed info here.";
+                // Show only "Locked" message for locked tiers
+                container.Add(new CuiLabel
+                {
+                    Text =
+                    {
+                        Text = "Locked",
+                        FontSize = 16,
+                        Align = TextAnchor.MiddleCenter,
+                        Color = "0.9 0.8 0.6 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0 0",
+                        AnchorMax = "1 1"
+                    }
+                }, detailPanel);
             }
             else
             {
-                var lines = new List<string>
+                // Show full details for unlocked tiers or when no node is selected
+                string detailTitle = selectedCfg != null ? selectedCfg.DisplayName : "Select a Rage skill";
+                string detailBody;
+                if (selectedCfg == null)
                 {
-                    $"Level: {selectedLevel}/{selectedCfg.MaxLevel}"
-                };
-
-                float totalDmg = selectedLevel * selectedCfg.DamageBonusPerLevel * 100f;
-                float totalCrit = selectedLevel * selectedCfg.CritChancePerLevel * 100f;
-                float totalCritDmg = selectedLevel * selectedCfg.CritDamagePerLevel * 100f;
-                float totalBleed = selectedLevel * selectedCfg.BleedChancePerLevel * 100f;
-                float totalMove = selectedLevel * selectedCfg.MoveSpeedPerLevel * 100f;
-                float totalRecoil = selectedLevel * selectedCfg.RecoilReductionPerLevel * 100f;
-
-                if (selectedCfg.DamageBonusPerLevel != 0)
-                    lines.Add($"Damage: +{totalDmg:0.#}% total ({selectedCfg.DamageBonusPerLevel * 100f:0.#}%/level)");
-                if (selectedCfg.CritChancePerLevel != 0)
-                    lines.Add($"Crit Chance: +{totalCrit:0.#}% total ({selectedCfg.CritChancePerLevel * 100f:0.#}%/level)");
-                if (selectedCfg.CritDamagePerLevel != 0)
-                    lines.Add($"Crit Damage: +{totalCritDmg:0.#}% total ({selectedCfg.CritDamagePerLevel * 100f:0.#}%/level)");
-                if (selectedCfg.BleedChancePerLevel != 0)
-                    lines.Add($"Bleed Chance: +{totalBleed:0.#}% total ({selectedCfg.BleedChancePerLevel * 100f:0.#}%/level)");
-                if (selectedCfg.MoveSpeedPerLevel != 0)
-                    lines.Add($"Move Speed: +{totalMove:0.#}% total ({selectedCfg.MoveSpeedPerLevel * 100f:0.#}%/level)");
-                if (selectedCfg.RecoilReductionPerLevel != 0)
-                    lines.Add($"Recoil: -{totalRecoil:0.#}% total ({selectedCfg.RecoilReductionPerLevel * 100f:0.#}%/level)");
-
-                if (lines.Count == 1)
-                    lines.Add("No numeric bonuses configured for this node yet.");
-
-                detailBody = string.Join("\n", lines);
-            }
-
-            container.Add(new CuiLabel
-            {
-                Text =
-                {
-                    Text = detailTitle,
-                    FontSize = 15,
-                    Align = TextAnchor.MiddleLeft,
-                    Color = "1 0.9 0.7 1"
-                },
-                RectTransform =
-                {
-                    AnchorMin = "0.05 0.70",
-                    AnchorMax = "0.95 0.96"
+                    detailBody = "Click the ? icon on any Rage node to view detailed info here.";
                 }
-            }, detailPanel);
-
-            // Display detail icon if configured
-            if (selectedCfg != null && !string.IsNullOrEmpty(selectedCfg.DetailIconImage))
-            {
-                container.Add(new CuiElement
+                else
                 {
-                    Name = detailPanel + ".SelectedIcon",
-                    Parent = detailPanel,
-                    Components =
+                    var lines = new List<string>
                     {
-                        new CuiRawImageComponent
-                        {
-                            Url = selectedCfg.DetailIconImage,
-                            Color = "1 1 1 1"
-                        },
-                        new CuiRectTransformComponent
-                        {
-                            AnchorMin = "0.05 0.55",
-                            AnchorMax = "0.35 0.90"
-                        }
-                    }
-                });
-            }
+                        $"Level: {selectedLevel}/{selectedCfg.MaxLevel}"
+                    };
 
-            container.Add(new CuiLabel
-            {
-                Text =
-                {
-                    Text = detailBody,
-                    FontSize = 12,
-                    Align = TextAnchor.UpperLeft,
-                    Color = "0.9 0.9 0.9 1"
-                },
-                RectTransform =
-                {
-                    AnchorMin = "0.05 0.10",
-                    AnchorMax = "0.95 0.80"
+                    float totalDmg = selectedLevel * selectedCfg.DamageBonusPerLevel * 100f;
+                    float totalCrit = selectedLevel * selectedCfg.CritChancePerLevel * 100f;
+                    float totalCritDmg = selectedLevel * selectedCfg.CritDamagePerLevel * 100f;
+                    float totalBleed = selectedLevel * selectedCfg.BleedChancePerLevel * 100f;
+                    float totalMove = selectedLevel * selectedCfg.MoveSpeedPerLevel * 100f;
+                    float totalRecoil = selectedLevel * selectedCfg.RecoilReductionPerLevel * 100f;
+
+                    if (selectedCfg.DamageBonusPerLevel != 0)
+                        lines.Add($"Damage: +{totalDmg:0.#}% total ({selectedCfg.DamageBonusPerLevel * 100f:0.#}%/level)");
+                    if (selectedCfg.CritChancePerLevel != 0)
+                        lines.Add($"Crit Chance: +{totalCrit:0.#}% total ({selectedCfg.CritChancePerLevel * 100f:0.#}%/level)");
+                    if (selectedCfg.CritDamagePerLevel != 0)
+                        lines.Add($"Crit Damage: +{totalCritDmg:0.#}% total ({selectedCfg.CritDamagePerLevel * 100f:0.#}%/level)");
+                    if (selectedCfg.BleedChancePerLevel != 0)
+                        lines.Add($"Bleed Chance: +{totalBleed:0.#}% total ({selectedCfg.BleedChancePerLevel * 100f:0.#}%/level)");
+                    if (selectedCfg.MoveSpeedPerLevel != 0)
+                        lines.Add($"Move Speed: +{totalMove:0.#}% total ({selectedCfg.MoveSpeedPerLevel * 100f:0.#}%/level)");
+                    if (selectedCfg.RecoilReductionPerLevel != 0)
+                        lines.Add($"Recoil: -{totalRecoil:0.#}% total ({selectedCfg.RecoilReductionPerLevel * 100f:0.#}%/level)");
+
+                    if (lines.Count == 1)
+                        lines.Add("No numeric bonuses configured for this node yet.");
+
+                    detailBody = string.Join("\n", lines);
                 }
-            }, detailPanel);
 
-            // Add "Upgrade Skill" button if node is selected and can be upgraded
-            bool canUpgrade = selectedCfg != null
-                && data.Rage.UnspentPoints > 0
-                && GetRageNodeLevel(data, selectedId) < selectedCfg.MaxLevel
-                && data.Rage.MaxUnlockedTier >= selectedCfg.Tier;
-
-            if (canUpgrade)
-            {
-                container.Add(new CuiButton
+                // Name label at top
+                container.Add(new CuiLabel
                 {
-                    Button =
-                    {
-                        Command = $"omnirpg.rage.upgrade {selectedId}",
-                        Color = "0.80 0.25 0.25 0.95"
-                    },
                     Text =
                     {
-                        Text = "Upgrade Skill",
-                        FontSize = 14,
+                        Text = detailTitle,
+                        FontSize = 18,
                         Align = TextAnchor.MiddleCenter,
+                        Color = "1 0.95 0.8 1"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0.05 0.78",
+                        AnchorMax = "0.95 0.95"
+                    }
+                }, detailPanel);
+
+                // Big detail icon in middle
+                if (selectedCfg != null && !string.IsNullOrEmpty(selectedCfg.DetailIconImage))
+                {
+                    container.Add(new CuiElement
+                    {
+                        Name = detailPanel + ".SelectedIcon",
+                        Parent = detailPanel,
+                        Components =
+                        {
+                            new CuiRawImageComponent
+                            {
+                                Url = selectedCfg.DetailIconImage,
+                                Color = "1 1 1 1"
+                            },
+                            new CuiRectTransformComponent
+                            {
+                                AnchorMin = "0.10 0.28",
+                                AnchorMax = "0.90 0.78"
+                            }
+                        }
+                    });
+                }
+
+                // Stats at bottom
+                container.Add(new CuiLabel
+                {
+                    Text =
+                    {
+                        Text = detailBody,
+                        FontSize = 12,
+                        Align = TextAnchor.UpperLeft,
                         Color = "1 1 1 1"
                     },
                     RectTransform =
                     {
-                        AnchorMin = "0.55 0.05",
-                        AnchorMax = "0.95 0.12"
+                        AnchorMin = "0.05 0.05",
+                        AnchorMax = "0.95 0.25"
                     }
                 }, detailPanel);
+
+                // Add "Upgrade Skill" button if node is selected and can be upgraded
+                bool canUpgrade = selectedCfg != null
+                    && data.Rage.UnspentPoints > 0
+                    && GetRageNodeLevel(data, selectedId) < selectedCfg.MaxLevel
+                    && data.Rage.MaxUnlockedTier >= selectedCfg.Tier;
+
+                if (canUpgrade)
+                {
+                    container.Add(new CuiButton
+                    {
+                        Button =
+                        {
+                            Command = $"omnirpg.rage.upgrade {selectedId}",
+                            Color = "0.80 0.25 0.25 0.95"
+                        },
+                        Text =
+                        {
+                            Text = "Upgrade Skill",
+                            FontSize = 14,
+                            Align = TextAnchor.MiddleCenter,
+                            Color = "1 1 1 1"
+                        },
+                        RectTransform =
+                        {
+                            AnchorMin = "0.55 0.05",
+                            AnchorMax = "0.95 0.12"
+                        }
+                    }, detailPanel);
+                }
             }
 
             // Total combined buff summary (bottom-right)
