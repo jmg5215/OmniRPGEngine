@@ -2710,27 +2710,42 @@ namespace Oxide.Plugins
                 flashActive = elapsed >= 0 && elapsed <= flashWindow;
             }
 
-            // Central-core layout: Tier-1 ring positions
-            // Multi-tier layout: approximate concentric vertical distribution
+            // X-shaped tier layout with centered Rage Core
             var nodePositions = new Dictionary<string, Vector2>
             {
-                // Tier 1 (inner)
-                { "core_t1",    new Vector2(0.50f, 0.65f) },
-                { "rifle_t1",   new Vector2(0.30f, 0.50f) },
-                { "shotgun_t1", new Vector2(0.50f, 0.48f) },
-                { "pistol_t1",  new Vector2(0.70f, 0.50f) },
+                // ---------- CORE (Tier 1) ----------
+                // Center of the tree panel
+                { "core_t1", new Vector2(0.50f, 0.50f) },
 
-                // Tier 2 (middle ring)
-                { "core_t2_bloodlust",          new Vector2(0.50f, 0.80f) },
-                { "rifle_t2_predators_focus",   new Vector2(0.22f, 0.56f) },
-                { "shotgun_t2_bonebreaker",     new Vector2(0.50f, 0.38f) },
-                { "pistol_t2_quickkill_reflexes", new Vector2(0.78f, 0.56f) },
+                // Tier 1 non-core branches (horizontal + vertical cross around center)
+                { "rifle_t1",   new Vector2(0.22f, 0.50f) },
+                { "pistol_t1",  new Vector2(0.78f, 0.50f) },
+                { "shotgun_t1", new Vector2(0.50f, 0.25f) },
 
-                // Tier 3 (outer ring)
-                { "core_t3_berserker_instinct",    new Vector2(0.50f, 0.90f) },
-                { "rifle_t3_overcharge_rounds",    new Vector2(0.15f, 0.62f) },
-                { "shotgun_t3_sawedoff_fury",      new Vector2(0.50f, 0.28f) },
-                { "pistol_t3_street_executioner",  new Vector2(0.85f, 0.62f) }
+                // ---------- TIER 2 CORE + BRANCHES (top-right of X) ----------
+                { "core_t2_bloodlust",               new Vector2(0.72f, 0.72f) },
+                { "rifle_t2_predators_focus",        new Vector2(0.82f, 0.82f) },
+                { "shotgun_t2_bonebreaker",          new Vector2(0.72f, 0.87f) },
+                { "pistol_t2_quickkill_reflexes",    new Vector2(0.87f, 0.72f) },
+
+                // ---------- TIER 3 CORE + BRANCHES (top-left of X) ----------
+                { "core_t3_berserker_instinct",      new Vector2(0.28f, 0.72f) },
+                { "rifle_t3_overcharge_rounds",      new Vector2(0.18f, 0.82f) },
+                { "shotgun_t3_sawedoff_fury",        new Vector2(0.28f, 0.87f) },
+                { "pistol_t3_street_executioner",    new Vector2(0.13f, 0.72f) },
+
+                // ---------- TIER 4 CORE + BRANCHES (bottom-left of X) ----------
+                // Use these when you define Tier 4 nodes; if they don't exist yet they will simply be skipped.
+                { "core_t4_adrenal_surge",           new Vector2(0.28f, 0.28f) },
+                { "rifle_t4_deathline_marksman",     new Vector2(0.18f, 0.18f) },
+                { "shotgun_t4_shrapnel_storm",      new Vector2(0.28f, 0.13f) },
+                { "pistol_t4_gunslingers_frenzy",    new Vector2(0.13f, 0.28f) },
+
+                // ---------- TIER 5 CORE + BRANCHES (bottom-right of X) ----------
+                { "core_t5_fury_unleashed",          new Vector2(0.72f, 0.28f) },
+                { "rifle_t5_warmachine_protocol",    new Vector2(0.82f, 0.18f) },
+                { "shotgun_t5_carnage_blast",        new Vector2(0.72f, 0.13f) },
+                { "pistol_t5_carnage_blast",         new Vector2(0.87f, 0.28f) }
             };
 
             // Draw connection lines from each node to its ParentNodeId
@@ -3069,38 +3084,16 @@ namespace Oxide.Plugins
                         },
                         new CuiRectTransformComponent
                         {
-                            AnchorMin = "0.10 0.20",
-                            AnchorMax = "0.90 0.92"
+                            AnchorMin = "0.10 0.25",
+                            AnchorMax = "0.90 0.95"
                         }
                     }
                 });
             }
 
-            // Level bar under the icon
-            float filled = cfg.MaxLevel > 0 ? (float)currentLevel / cfg.MaxLevel : 0f;
             bool canIncrease = unlocked && currentLevel < cfg.MaxLevel;
-            string barParent = nodePanel + ".LevelBar";
-            container.Add(new CuiPanel
-            {
-                Image = { Color = "0.05 0.05 0.05 0.9" },
-                RectTransform =
-                {
-                    AnchorMin = "0.10 0.05",
-                    AnchorMax = "0.90 0.16"
-                }
-            }, nodePanel, barParent);
 
-            container.Add(new CuiPanel
-            {
-                Image = { Color = unlocked ? "0.2 0.8 0.3 1" : "0.3 0.3 0.3 1" },
-                RectTransform =
-                {
-                    AnchorMin = "0.02 0.15",
-                    AnchorMax = $"{(0.02f + 0.96f * filled).ToString(CultureInfo.InvariantCulture)} 0.85"
-                }
-            }, barParent);
-
-            // Center label (display name or "Locked")
+            // Title label (display name or "Locked") - below icon
             container.Add(new CuiLabel
             {
                 Text =
@@ -3112,8 +3105,8 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.05 0.40",
-                    AnchorMax = "0.95 0.85"
+                    AnchorMin = "0.05 0.00",
+                    AnchorMax = "0.95 0.25"
                 }
             }, nodePanel);
 
