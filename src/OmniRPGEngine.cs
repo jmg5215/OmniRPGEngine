@@ -2670,7 +2670,7 @@ namespace Oxide.Plugins
                 }
             }, parent, rightPanel);
 
-            // Top: selected node details (~75%)
+            // Top: selected node details (~80%)
             var detailPanel = rightPanel + ".Details";
             container.Add(new CuiPanel
             {
@@ -2680,12 +2680,12 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.03 0.25",
+                    AnchorMin = "0.03 0.20",
                     AnchorMax = "0.97 0.97"
                 }
             }, rightPanel, detailPanel);
 
-            // Bottom: total combined Rage buffs (~25%)
+            // Bottom: total combined Rage buffs (~20%)
             var summaryBuffPanel = rightPanel + ".BuffSummary";
             container.Add(new CuiPanel
             {
@@ -2696,7 +2696,7 @@ namespace Oxide.Plugins
                 RectTransform =
                 {
                     AnchorMin = "0.03 0.03",
-                    AnchorMax = "0.97 0.25"
+                    AnchorMax = "0.97 0.20"
                 }
             }, rightPanel, summaryBuffPanel);
 
@@ -2932,8 +2932,8 @@ namespace Oxide.Plugins
                         Image = { Color = "0.05 0.05 0.05 0.9" },
                         RectTransform =
                         {
-                            AnchorMin = "0.08 0.25",
-                            AnchorMax = "0.92 0.28"
+                            AnchorMin = "0.08 0.20",
+                            AnchorMax = "0.92 0.25"
                         }
                     }, rightPanel, detailBarParent);
 
@@ -2960,8 +2960,8 @@ namespace Oxide.Plugins
                     },
                     RectTransform =
                     {
-                        AnchorMin = "0.05 0.05",
-                        AnchorMax = "0.95 0.25"
+                        AnchorMin = "0.05 0.03",
+                        AnchorMax = "0.95 0.18"
                     }
                 }, detailPanel);
 
@@ -3168,25 +3168,6 @@ namespace Oxide.Plugins
                     AnchorMax = "0.95 0.25"
                 }
             }, nodePanel);
-
-            // Clickable button to select node
-            if (unlocked)
-            {
-                container.Add(new CuiButton
-                {
-                    Button =
-                    {
-                        Command = $"omnirpg.rage.inspect {nodeId}",
-                        Color = "0 0 0 0"
-                    },
-                    RectTransform =
-                    {
-                        AnchorMin = "0 0",
-                        AnchorMax = "1 1"
-                    },
-                    Text = { Text = "", FontSize = 0 }
-                }, nodePanel);
-            }
 
             // Level label
             container.Add(new CuiLabel
