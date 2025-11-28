@@ -904,9 +904,9 @@ namespace Oxide.Plugins
             {
                 // Tier 1
                 case "core_t1": return "Rage Core: global bonuses to damage, recoil and movement.";
-                case "rifle_t1": return "Rifle Mastery: improves rifle handling and headshot potential.";
-                case "shotgun_t1": return "Shotgun Savagery: enhances close-range impact and bleed chance.";
-                case "pistol_t1": return "Pistol Precision: boosts precision and critical damage output.";
+                case "rifle_t1": return "Predators Focus: improves rifle handling and headshot potential.";
+                case "shotgun_t1": return "Bonebreaker Load: enhances close-range impact and bleed chance.";
+                case "pistol_t1": return "Quickkill Reflexes: boosts precision and critical damage output.";
                 // Tier 2
                 case "core_t2_bloodlust": return "Bloodlust: feeds ferocity, paving the path to Berserker.";
                 case "rifle_t2_predators_focus": return "Predator's Focus: unwavering aim in sustained engagements.";
