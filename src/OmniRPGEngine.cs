@@ -2881,7 +2881,7 @@ namespace Oxide.Plugins
                     detailBody = string.Join("\n", lines);
                 }
 
-                // Name label at top
+                // Name label at top (moved closer to top)
                 container.Add(new CuiLabel
                 {
                     Text =
@@ -2893,12 +2893,12 @@ namespace Oxide.Plugins
                     },
                     RectTransform =
                     {
-                        AnchorMin = "0.05 0.78",
-                        AnchorMax = "0.95 0.95"
+                        AnchorMin = "0.05 0.84",
+                        AnchorMax = "0.95 0.98"
                     }
                 }, detailPanel);
 
-                // Big detail icon in middle
+                // Big detail icon in middle (moved up, more vertical space)
                 if (selectedCfg != null && !string.IsNullOrEmpty(selectedCfg.DetailIconImage))
                 {
                     container.Add(new CuiElement
@@ -2914,11 +2914,38 @@ namespace Oxide.Plugins
                             },
                             new CuiRectTransformComponent
                             {
-                                AnchorMin = "0.10 0.28",
-                                AnchorMax = "0.90 0.78"
+                                AnchorMin = "0.08 0.30",
+                                AnchorMax = "0.92 0.82"
                             }
                         }
                     });
+
+                    // Level progress bar under the detail image
+                    int detailLevel = GetRageNodeLevel(data, selectedId);
+                    float detailFilled = selectedCfg.MaxLevel > 0
+                        ? (float)detailLevel / selectedCfg.MaxLevel
+                        : 0f;
+
+                    string detailBarParent = rightPanel + ".DetailLevelBar";
+                    container.Add(new CuiPanel
+                    {
+                        Image = { Color = "0.05 0.05 0.05 0.9" },
+                        RectTransform =
+                        {
+                            AnchorMin = "0.08 0.24",
+                            AnchorMax = "0.92 0.29"
+                        }
+                    }, rightPanel, detailBarParent);
+
+                    container.Add(new CuiPanel
+                    {
+                        Image = { Color = "0.2 0.8 0.3 1" },
+                        RectTransform =
+                        {
+                            AnchorMin = "0.02 0.15",
+                            AnchorMax = $"{0.02f + 0.96f * detailFilled} 0.85"
+                        }
+                    }, detailBarParent);
                 }
 
                 // Stats at bottom
@@ -2956,14 +2983,14 @@ namespace Oxide.Plugins
                         Text =
                         {
                             Text = "Upgrade Skill",
-                            FontSize = 14,
+                            FontSize = 16,
                             Align = TextAnchor.MiddleCenter,
                             Color = "1 1 1 1"
                         },
                         RectTransform =
                         {
-                            AnchorMin = "0.55 0.05",
-                            AnchorMax = "0.95 0.12"
+                            AnchorMin = "0.60 0.05",
+                            AnchorMax = "0.95 0.16"
                         }
                     }, detailPanel);
                 }
@@ -3091,9 +3118,7 @@ namespace Oxide.Plugins
             {
                 Image =
                 {
-                    Color = (flashActive && nodeId == flashNode)
-                        ? "1 0.7 0.2 0.9"
-                        : (isSelected ? "0.8 0.8 0.8 0.9" : "0.2 0.2 0.2 0.9")
+                    Color = "0 0 0 0"
                 },
                 RectTransform =
                 {
