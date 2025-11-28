@@ -3169,6 +3169,25 @@ namespace Oxide.Plugins
                 }
             }, nodePanel);
 
+            // Clickable button to select node
+            if (unlocked)
+            {
+                container.Add(new CuiButton
+                {
+                    Button =
+                    {
+                        Command = $"omnirpg.rage.inspect {nodeId}",
+                        Color = "0 0 0 0"
+                    },
+                    RectTransform =
+                    {
+                        AnchorMin = "0 0",
+                        AnchorMax = "1 1"
+                    },
+                    Text = { Text = "", FontSize = 0 }
+                }, nodePanel);
+            }
+
             // Level label
             container.Add(new CuiLabel
             {
