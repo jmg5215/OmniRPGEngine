@@ -2670,7 +2670,7 @@ namespace Oxide.Plugins
                 }
             }, parent, rightPanel);
 
-            // Top half: selected node details
+            // Top: selected node details (~75%)
             var detailPanel = rightPanel + ".Details";
             container.Add(new CuiPanel
             {
@@ -2680,12 +2680,12 @@ namespace Oxide.Plugins
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.03 0.50",
+                    AnchorMin = "0.03 0.25",
                     AnchorMax = "0.97 0.97"
                 }
             }, rightPanel, detailPanel);
 
-            // Bottom half: total combined Rage buffs
+            // Bottom: total combined Rage buffs (~25%)
             var summaryBuffPanel = rightPanel + ".BuffSummary";
             container.Add(new CuiPanel
             {
@@ -2696,7 +2696,7 @@ namespace Oxide.Plugins
                 RectTransform =
                 {
                     AnchorMin = "0.03 0.03",
-                    AnchorMax = "0.97 0.48"
+                    AnchorMax = "0.97 0.25"
                 }
             }, rightPanel, summaryBuffPanel);
 
@@ -2710,42 +2710,40 @@ namespace Oxide.Plugins
                 flashActive = elapsed >= 0 && elapsed <= flashWindow;
             }
 
-            // X-shaped tier layout with centered Rage Core
+            // X-shaped tier layout tightened ~25% toward center
             var nodePositions = new Dictionary<string, Vector2>
             {
-                // ---------- CORE (Tier 1) ----------
-                // Center of the tree panel
+                // Core Tier 1 stays dead center
                 { "core_t1", new Vector2(0.50f, 0.50f) },
 
-                // Tier 1 non-core branches (horizontal + vertical cross around center)
-                { "rifle_t1",   new Vector2(0.22f, 0.50f) },
-                { "pistol_t1",  new Vector2(0.78f, 0.50f) },
-                { "shotgun_t1", new Vector2(0.50f, 0.25f) },
+                // Tier 1 non-core
+                { "rifle_t1",   new Vector2(0.29f, 0.50f) },
+                { "pistol_t1",  new Vector2(0.71f, 0.50f) },
+                { "shotgun_t1", new Vector2(0.50f, 0.312f) },
 
-                // ---------- TIER 2 CORE + BRANCHES (top-right of X) ----------
-                { "core_t2_bloodlust",               new Vector2(0.72f, 0.72f) },
-                { "rifle_t2_predators_focus",        new Vector2(0.82f, 0.82f) },
-                { "shotgun_t2_bonebreaker",          new Vector2(0.72f, 0.87f) },
-                { "pistol_t2_quickkill_reflexes",    new Vector2(0.87f, 0.72f) },
+                // Tier 2 core + branches (pulled toward center)
+                { "core_t2_bloodlust",            new Vector2(0.665f, 0.665f) },
+                { "rifle_t2_predators_focus",     new Vector2(0.740f, 0.740f) },
+                { "shotgun_t2_bonebreaker",       new Vector2(0.665f, 0.777f) },
+                { "pistol_t2_quickkill_reflexes", new Vector2(0.777f, 0.665f) },
 
-                // ---------- TIER 3 CORE + BRANCHES (top-left of X) ----------
-                { "core_t3_berserker_instinct",      new Vector2(0.28f, 0.72f) },
-                { "rifle_t3_overcharge_rounds",      new Vector2(0.18f, 0.82f) },
-                { "shotgun_t3_sawedoff_fury",        new Vector2(0.28f, 0.87f) },
-                { "pistol_t3_street_executioner",    new Vector2(0.13f, 0.72f) },
+                // Tier 3 core + branches
+                { "core_t3_berserker_instinct",   new Vector2(0.335f, 0.665f) },
+                { "rifle_t3_overcharge_rounds",   new Vector2(0.260f, 0.740f) },
+                { "shotgun_t3_sawedoff_fury",     new Vector2(0.335f, 0.777f) },
+                { "pistol_t3_street_executioner", new Vector2(0.223f, 0.665f) },
 
-                // ---------- TIER 4 CORE + BRANCHES (bottom-left of X) ----------
-                // Use these when you define Tier 4 nodes; if they don't exist yet they will simply be skipped.
-                { "core_t4_adrenal_surge",           new Vector2(0.28f, 0.28f) },
-                { "rifle_t4_deathline_marksman",     new Vector2(0.18f, 0.18f) },
-                { "shotgun_t4_shrapnel_storm",      new Vector2(0.28f, 0.13f) },
-                { "pistol_t4_gunslingers_frenzy",    new Vector2(0.13f, 0.28f) },
+                // Tier 4 core + branches (bottom-left)
+                { "core_t4_adrenal_surge",        new Vector2(0.335f, 0.335f) },
+                { "rifle_t4_deathline_marksman",  new Vector2(0.260f, 0.260f) },
+                { "shotgun_t4_shrapnel_storm",    new Vector2(0.335f, 0.223f) },
+                { "pistol_t4_gunslingers_frenzy", new Vector2(0.223f, 0.335f) },
 
-                // ---------- TIER 5 CORE + BRANCHES (bottom-right of X) ----------
-                { "core_t5_fury_unleashed",          new Vector2(0.72f, 0.28f) },
-                { "rifle_t5_warmachine_protocol",    new Vector2(0.82f, 0.18f) },
-                { "shotgun_t5_carnage_blast",        new Vector2(0.72f, 0.13f) },
-                { "pistol_t5_carnage_blast",         new Vector2(0.87f, 0.28f) }
+                // Tier 5 core + branches (bottom-right)
+                { "core_t5_fury_unleashed",       new Vector2(0.665f, 0.335f) },
+                { "rifle_t5_warmachine_protocol", new Vector2(0.740f, 0.260f) },
+                { "shotgun_t5_carnage_blast",     new Vector2(0.665f, 0.223f) },
+                { "pistol_t5_carnage_blast",      new Vector2(0.777f, 0.335f) }
             };
 
             // Draw connection lines from each node to its ParentNodeId
@@ -2781,7 +2779,7 @@ namespace Oxide.Plugins
                 var lineName = treePanel + $".Line.{cfg.ParentNodeId}.{nodeId}";
                 container.Add(new CuiPanel
                 {
-                    Image = { Color = "0.8 0.1 0.1 0.9" },
+                    Image = { Color = "0.05 0.05 0.05 0.9" },
                     RectTransform =
                     {
                         AnchorMin = $"{minX.ToString(CultureInfo.InvariantCulture)} {minY.ToString(CultureInfo.InvariantCulture)}",
