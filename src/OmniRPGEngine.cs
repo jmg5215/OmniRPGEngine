@@ -2710,40 +2710,40 @@ namespace Oxide.Plugins
                 flashActive = elapsed >= 0 && elapsed <= flashWindow;
             }
 
-            // X-shaped tier layout tightened ~25% toward center
+            // X-shaped tier layout with slightly spread-out branches
             var nodePositions = new Dictionary<string, Vector2>
             {
                 // Core Tier 1 stays dead center
                 { "core_t1", new Vector2(0.50f, 0.50f) },
 
-                // Tier 1 non-core
-                { "rifle_t1",   new Vector2(0.29f, 0.50f) },
-                { "pistol_t1",  new Vector2(0.71f, 0.50f) },
-                { "shotgun_t1", new Vector2(0.50f, 0.312f) },
+                // Tier 1 branches (slightly wider apart)
+                { "rifle_t1",   new Vector2(0.28f, 0.50f) },
+                { "pistol_t1",  new Vector2(0.72f, 0.50f) },
+                { "shotgun_t1", new Vector2(0.50f, 0.315f) },
 
-                // Tier 2 core + branches (pulled toward center)
+                // Tier 2 core + branches (spread around core_t2_bloodlust)
                 { "core_t2_bloodlust",            new Vector2(0.665f, 0.665f) },
-                { "rifle_t2_predators_focus",     new Vector2(0.740f, 0.740f) },
-                { "shotgun_t2_bonebreaker",       new Vector2(0.665f, 0.777f) },
-                { "pistol_t2_quickkill_reflexes", new Vector2(0.777f, 0.665f) },
+                { "rifle_t2_predators_focus",     new Vector2(0.75f, 0.76f) },
+                { "shotgun_t2_bonebreaker",       new Vector2(0.665f, 0.80f) },
+                { "pistol_t2_quickkill_reflexes", new Vector2(0.80f, 0.665f) },
 
-                // Tier 3 core + branches
+                // Tier 3 core + branches (spread around core_t3_berserker_instinct)
                 { "core_t3_berserker_instinct",   new Vector2(0.335f, 0.665f) },
-                { "rifle_t3_overcharge_rounds",   new Vector2(0.260f, 0.740f) },
-                { "shotgun_t3_sawedoff_fury",     new Vector2(0.335f, 0.777f) },
-                { "pistol_t3_street_executioner", new Vector2(0.223f, 0.665f) },
+                { "rifle_t3_overcharge_rounds",   new Vector2(0.25f, 0.76f) },
+                { "shotgun_t3_sawedoff_fury",     new Vector2(0.335f, 0.80f) },
+                { "pistol_t3_street_executioner", new Vector2(0.20f, 0.665f) },
 
                 // Tier 4 core + branches (bottom-left)
                 { "core_t4_adrenal_surge",        new Vector2(0.335f, 0.335f) },
-                { "rifle_t4_deathline_marksman",  new Vector2(0.260f, 0.260f) },
-                { "shotgun_t4_shrapnel_storm",    new Vector2(0.335f, 0.223f) },
-                { "pistol_t4_gunslingers_frenzy", new Vector2(0.223f, 0.335f) },
+                { "rifle_t4_deathline_marksman",  new Vector2(0.25f, 0.24f) },
+                { "shotgun_t4_shrapnel_storm",    new Vector2(0.335f, 0.205f) },
+                { "pistol_t4_gunslingers_frenzy", new Vector2(0.20f, 0.335f) },
 
                 // Tier 5 core + branches (bottom-right)
                 { "core_t5_fury_unleashed",       new Vector2(0.665f, 0.335f) },
-                { "rifle_t5_warmachine_protocol", new Vector2(0.740f, 0.260f) },
-                { "shotgun_t5_carnage_blast",     new Vector2(0.665f, 0.223f) },
-                { "pistol_t5_carnage_blast",      new Vector2(0.777f, 0.335f) }
+                { "rifle_t5_warmachine_protocol", new Vector2(0.75f, 0.24f) },
+                { "shotgun_t5_carnage_blast",     new Vector2(0.665f, 0.205f) },
+                { "pistol_t5_carnage_blast",      new Vector2(0.80f, 0.335f) }
             };
 
             // Draw connection lines from each node to its ParentNodeId
@@ -2893,8 +2893,8 @@ namespace Oxide.Plugins
                     },
                     RectTransform =
                     {
-                        AnchorMin = "0.05 0.84",
-                        AnchorMax = "0.95 0.98"
+                        AnchorMin = "0.05 0.88",
+                        AnchorMax = "0.95 0.99"
                     }
                 }, detailPanel);
 
@@ -2914,8 +2914,8 @@ namespace Oxide.Plugins
                             },
                             new CuiRectTransformComponent
                             {
-                                AnchorMin = "0.08 0.30",
-                                AnchorMax = "0.92 0.82"
+                                AnchorMin = "0.08 0.26",
+                                AnchorMax = "0.92 0.84"
                             }
                         }
                     });
@@ -3118,7 +3118,7 @@ namespace Oxide.Plugins
             {
                 Image =
                 {
-                    Color = "0 0 0 0"
+                    Color = "0.043 0.043 0.043 0.95"
                 },
                 RectTransform =
                 {
