@@ -2914,8 +2914,8 @@ namespace Oxide.Plugins
                             },
                             new CuiRectTransformComponent
                             {
-                                AnchorMin = "0.08 0.26",
-                                AnchorMax = "0.92 0.84"
+                                AnchorMin = "0.08 0.15",
+                                AnchorMax = "0.92 0.95"
                             }
                         }
                     });
