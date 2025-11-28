@@ -2926,16 +2926,17 @@ namespace Oxide.Plugins
                         ? (float)detailLevel / selectedCfg.MaxLevel
                         : 0f;
 
-                    string detailBarParent = rightPanel + ".DetailLevelBar";
+                    // Move progress bar inside detail panel flush at its bottom edge
+                    string detailBarParent = detailPanel + ".DetailLevelBar";
                     container.Add(new CuiPanel
                     {
                         Image = { Color = "0.05 0.05 0.05 0.9" },
                         RectTransform =
                         {
-                            AnchorMin = "0.08 0.215",
-                            AnchorMax = "0.92 0.235"
+                            AnchorMin = "0.05 0.02",
+                            AnchorMax = "0.95 0.05"
                         }
-                    }, rightPanel, detailBarParent);
+                    }, detailPanel, detailBarParent);
 
                     container.Add(new CuiPanel
                     {
