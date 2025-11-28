@@ -128,35 +128,35 @@ namespace Oxide.Plugins
                 },
                 ["rifle_t1"] = new RageNodeConfig
                 {
-                    DisplayName = "Rifle Mastery",
+                    DisplayName = "Predator's Focus",
                     MaxLevel = 10,
                     DamageBonusPerLevel = 0.02f,
                     CritChancePerLevel = 0.01f,
                     Tier = 1,
                     TreeIconImage = RageTreeBase + "Branch_Skills.png",
-                    DetailIconImage = RageIconBase + "rifle/T1_Rage_Rifle.png",
+                    DetailIconImage = RageIconBase + "rifle/T2_Rage_Predators_Focus.png",
                     ParentNodeId = "core_t1"
                 },
                 ["shotgun_t1"] = new RageNodeConfig
                 {
-                    DisplayName = "Shotgun Savagery",
+                    DisplayName = "Bonebreaker Load",
                     MaxLevel = 10,
                     DamageBonusPerLevel = 0.02f,
                     BleedChancePerLevel = 0.015f,
                     Tier = 1,
                     TreeIconImage = RageTreeBase + "Branch_Skills.png",
-                    DetailIconImage = RageIconBase + "shotgun/T1_Rage_Shotgun.png",
+                    DetailIconImage = RageIconBase + "shotgun/T2_Rage_Bonebreaker_Load.png",
                     ParentNodeId = "core_t1"
                 },
                 ["pistol_t1"] = new RageNodeConfig
                 {
-                    DisplayName = "Pistol Precision",
+                    DisplayName = "Quickkill Reflexes",
                     MaxLevel = 10,
                     DamageBonusPerLevel = 0.015f,
                     CritDamagePerLevel = 0.015f,
                     Tier = 1,
                     TreeIconImage = RageTreeBase + "Branch_Skills.png",
-                    DetailIconImage = RageIconBase + "pistol/T1_Rage_Pistol.png",
+                    DetailIconImage = RageIconBase + "pistol/T2_Rage_Quickkill_Reflexes.png",
                     ParentNodeId = "core_t1"
                 },
 
@@ -172,29 +172,29 @@ namespace Oxide.Plugins
                 },
                 ["rifle_t2_predators_focus"] = new RageNodeConfig
                 {
-                    DisplayName = "Predator's Focus",
+                    DisplayName = "Overcharge Rounds",
                     MaxLevel = 5,
                     Tier = 2,
                     TreeIconImage = RageTreeBase + "Branch_Skills.png",
-                    DetailIconImage = RageIconBase + "rifle/T2_Rage_Predators_Focus.png",
+                    DetailIconImage = RageIconBase + "rifle/T3_Rage_Overcharge_Rounds.png",
                     ParentNodeId = "rifle_t1"
                 },
                 ["shotgun_t2_bonebreaker"] = new RageNodeConfig
                 {
-                    DisplayName = "Bonebreaker Load",
+                    DisplayName = "Sawed-Off Fury",
                     MaxLevel = 5,
                     Tier = 2,
                     TreeIconImage = RageTreeBase + "Branch_Skills.png",
-                    DetailIconImage = RageIconBase + "shotgun/T2_Rage_Bonebreaker_Load.png",
+                    DetailIconImage = RageIconBase + "shotgun/T3_Rage_SawedOff_Fury.png",
                     ParentNodeId = "shotgun_t1"
                 },
                 ["pistol_t2_quickkill_reflexes"] = new RageNodeConfig
                 {
-                    DisplayName = "Quickkill Reflexes",
+                    DisplayName = "Street Executioner",
                     MaxLevel = 5,
                     Tier = 2,
                     TreeIconImage = RageTreeBase + "Branch_Skills.png",
-                    DetailIconImage = RageIconBase + "pistol/T2_Rage_Quickkill_Reflexes.png",
+                    DetailIconImage = RageIconBase + "pistol/T3_Rage_Street_Executioner.png",
                     ParentNodeId = "pistol_t1"
                 },
 
@@ -210,29 +210,29 @@ namespace Oxide.Plugins
                 },
                 ["rifle_t3_overcharge_rounds"] = new RageNodeConfig
                 {
-                    DisplayName = "Overcharge Rounds",
+                    DisplayName = "Deathline Marksman",
                     MaxLevel = 5,
                     Tier = 3,
                     TreeIconImage = RageTreeBase + "Branch_Skills.png",
-                    DetailIconImage = RageIconBase + "rifle/T3_Rage_Overcharge_Rounds.png",
+                    DetailIconImage = RageIconBase + "rifle/T4_Rage_Deathline_Marksman.png",
                     ParentNodeId = "rifle_t2_predators_focus"
                 },
                 ["shotgun_t3_sawedoff_fury"] = new RageNodeConfig
                 {
-                    DisplayName = "Sawed-Off Fury",
+                    DisplayName = "Shrapnel Storm",
                     MaxLevel = 5,
                     Tier = 3,
                     TreeIconImage = RageTreeBase + "Branch_Skills.png",
-                    DetailIconImage = RageIconBase + "shotgun/T3_Rage_SawedOff_Fury.png",
+                    DetailIconImage = RageIconBase + "shotgun/T4_Rage_Shrapnel_Storm.png",
                     ParentNodeId = "shotgun_t2_bonebreaker"
                 },
                 ["pistol_t3_street_executioner"] = new RageNodeConfig
                 {
-                    DisplayName = "Street Executioner",
+                    DisplayName = "Gunslinger's Frenzy",
                     MaxLevel = 5,
                     Tier = 3,
                     TreeIconImage = RageTreeBase + "Branch_Skills.png",
-                    DetailIconImage = RageIconBase + "pistol/T3_Rage_Street_Executioner.png",
+                    DetailIconImage = RageIconBase + "pistol/T4_Rage_Gunslingers_Frenzy.png",
                     ParentNodeId = "pistol_t2_quickkill_reflexes"
                 }
             };
