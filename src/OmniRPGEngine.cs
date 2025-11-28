@@ -2914,8 +2914,8 @@ namespace Oxide.Plugins
                             },
                             new CuiRectTransformComponent
                             {
-                                AnchorMin = "0.08 0.15",
-                                AnchorMax = "0.92 0.95"
+                                AnchorMin = "0.08 0.20",
+                                AnchorMax = "0.92 0.90"
                             }
                         }
                     });
@@ -2932,8 +2932,8 @@ namespace Oxide.Plugins
                         Image = { Color = "0.05 0.05 0.05 0.9" },
                         RectTransform =
                         {
-                            AnchorMin = "0.08 0.24",
-                            AnchorMax = "0.92 0.29"
+                            AnchorMin = "0.08 0.25",
+                            AnchorMax = "0.92 0.28"
                         }
                     }, rightPanel, detailBarParent);
 
