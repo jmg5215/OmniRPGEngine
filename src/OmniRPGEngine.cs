@@ -2933,8 +2933,8 @@ namespace Oxide.Plugins
                         Image = { Color = "0.05 0.05 0.05 0.9" },
                         RectTransform =
                         {
-                            AnchorMin = "0.05 0.02",
-                            AnchorMax = "0.95 0.05"
+                            AnchorMin = "0.05 0.01",
+                            AnchorMax = "0.95 0.03"
                         }
                     }, detailPanel, detailBarParent);
 
@@ -2961,8 +2961,8 @@ namespace Oxide.Plugins
                     },
                     RectTransform =
                     {
-                        AnchorMin = "0.05 0.03",
-                        AnchorMax = "0.95 0.18"
+                        AnchorMin = "0.05 0.06",
+                        AnchorMax = "0.95 0.20"
                     }
                 }, detailPanel);
 
